@@ -7,10 +7,10 @@ This project ships Arch/CachyOS packaging in `packaging/arch`.
 For a small upstream desktop app, the practical path is:
 
 1. Publish GitHub releases with binaries and a pacman package asset.
-2. Host a small pacman repository yourself once the repo is public.
+2. Use the GitHub release pacman metadata for the one-package repo.
 3. Submit a CachyOS package request or PR later if there is user demand.
 
-CachyOS' package repositories are curated. A self-hosted pacman repo gives users the same `pacman -S` install flow without requiring CachyOS to accept the package first.
+CachyOS' package repositories are curated. A release-backed or self-hosted pacman repo gives users the same `pacman -S` install flow without requiring CachyOS to accept the package first.
 
 ## Build a Local Package
 
@@ -64,7 +64,7 @@ Use signed packages and a stricter `SigLevel` before treating the repository as 
 
 ## GitHub Release Pacman Repo
 
-The release workflow uploads the package plus `realistic-mouse-jiggler.db` and `realistic-mouse-jiggler.files` assets. Once the repository is public, users can install from the latest release with:
+The release workflow uploads the package plus `realistic-mouse-jiggler.db` and `realistic-mouse-jiggler.files` assets. Users can install from the latest release with:
 
 ```ini
 [realistic-mouse-jiggler]
@@ -82,7 +82,7 @@ This is convenient for one package. A dedicated static host or GitHub Pages repo
 
 ## GitHub Pages Hosting
 
-GitHub Pages is a good fit for the pacman repo directory, but the repository or Pages site must be publicly reachable for normal users. This repository is currently private, so a Pages pacman repo would not be a public install source until visibility/Pages settings change.
+GitHub Pages is a good fit for the pacman repo directory if this grows beyond one package. For the current single package, the GitHub release metadata is enough.
 
 ## CachyOS Submission
 

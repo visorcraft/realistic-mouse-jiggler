@@ -30,6 +30,7 @@ crash-*.txt
 !.env.example
 !.env.*.example
 *.local
+AGENTS.md
 
 # Editor and IDE state
 .idea/
