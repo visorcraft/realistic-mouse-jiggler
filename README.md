@@ -25,14 +25,6 @@
 
 ---
 
-## Preview
-
-<p align="center">
-  <img src="assets/social-card.png" alt="Realistic Mouse Jiggler social card" width="820" />
-</p>
-
----
-
 ## What is Realistic Mouse Jiggler?
 
 Realistic Mouse Jiggler keeps desktop sessions awake by moving the cursor
@@ -78,13 +70,7 @@ target/release/realistic-mouse-jiggler
 
 ### Arch / CachyOS
 
-Install the current release package directly:
-
-```bash
-sudo pacman -U https://github.com/visorcraft/realistic-mouse-jiggler/releases/download/v0.1.2/realistic-mouse-jiggler-0.1.2-1-x86_64.pkg.tar.zst
-```
-
-Or add the GitHub release as a small pacman repository:
+Add the GitHub release as a small pacman repository:
 
 ```ini
 [realistic-mouse-jiggler]
@@ -95,11 +81,13 @@ Server = https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/d
 Then install:
 
 ```bash
-sudo pacman -Sy realistic-mouse-jiggler
+sudo pacman -Syu realistic-mouse-jiggler
 ```
 
 The package is currently unsigned, which is why the repo stanza uses
-`Optional TrustAll`.
+`Optional TrustAll`. Installing the package directly from its release
+asset URL can fail on systems that try to download a matching `.sig`
+file for remote packages.
 
 ### Linux Tarball
 

@@ -57,7 +57,7 @@ Server = https://<your-host>/realistic-mouse-jiggler/$arch
 Then they can install with:
 
 ```bash
-sudo pacman -Sy realistic-mouse-jiggler
+sudo pacman -Syu realistic-mouse-jiggler
 ```
 
 Use signed packages and a stricter `SigLevel` before treating the repository as production infrastructure.
@@ -75,7 +75,7 @@ Server = https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/d
 Then:
 
 ```bash
-sudo pacman -Sy realistic-mouse-jiggler
+sudo pacman -Syu realistic-mouse-jiggler
 ```
 
 This is convenient for one package. A dedicated static host or GitHub Pages repo is cleaner if more packages are added.
