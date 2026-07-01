@@ -28,6 +28,28 @@ The binary will be at:
 target/release/realistic-mouse-jiggler
 ```
 
+## CachyOS / Arch Package
+
+Build a local pacman package:
+
+```bash
+scripts/build-arch-package.sh --syncdeps
+```
+
+Install it:
+
+```bash
+sudo pacman -U dist/arch/realistic-mouse-jiggler-*.pkg.tar.*
+```
+
+Build a static pacman repo directory:
+
+```bash
+scripts/build-pacman-repo.sh
+```
+
+See [CachyOS and Pacman Packaging](docs/cachyos-packaging.md) for hosting and CachyOS submission notes.
+
 ## Linux Notes
 
 The app uses native input APIs where possible.
@@ -68,6 +90,7 @@ Direct dependencies are pinned to the latest stable crates.io versions verified 
 | `core-graphics` | `0.25.0` | macOS event taps for bindings |
 | `core-foundation` | `0.10.1` | macOS run loop integration |
 | `directories` | `6.0.0` | Platform config paths |
+| `image` | `0.25.10` | Embedded PNG app and tray icons |
 | `toml` | `1.1.2` | Config file format |
 | `anyhow` | `1.0.103` | Error handling |
 | `serde` | `1.0.228` | Config serialization |

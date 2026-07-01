@@ -1,6 +1,6 @@
 [package]
 name = "realistic-mouse-jiggler"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.85"
 description = "Cross-platform desktop mouse jiggler with realistic motion, tray controls, and global bindings."
@@ -11,6 +11,7 @@ anyhow = "1.0.103"
 directories = "6.0.0"
 eframe = "0.35.0"
 enigo = { version = "0.6.1", features = ["wayland"] }
+image = { version = "0.25.10", default-features = false, features = ["png"] }
 serde = { version = "1.0.228", features = ["derive"] }
 toml = "1.1.2"
 

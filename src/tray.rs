@@ -5,13 +5,19 @@ mod platform {
     use eframe::egui;
     use ksni::{blocking::TrayMethods, menu::StandardItem, Icon, MenuItem, ToolTip, Tray};
 
-    use crate::events::AppEvent;
+    use crate::{events::AppEvent, icons};
 
     const APP_ID: &str = "com.visorcraft.realistic-mouse-jiggler";
     const APP_TITLE: &str = "Realistic Mouse Jiggler";
     const FALLBACK_ICON_NAME: &str = "preferences-desktop-mouse";
-    const TRAY_ICON_SVG: &str = include_str!("../assets/tray-icon.svg");
-    const TRAY_ICON_SIZES: [usize; 6] = [16, 22, 24, 32, 48, 64];
+    const TRAY_ICON_PNGS: [&[u8]; 6] = [
+        icons::RMJ_16_PNG,
+        icons::RMJ_24_PNG,
+        icons::RMJ_32_PNG,
+        icons::RMJ_48_PNG,
+        icons::RMJ_64_PNG,
+        icons::RMJ_128_PNG,
+    ];
 
     pub struct TrayState {
         _handle: ksni::blocking::Handle<LinuxTray>,
@@ -72,13 +78,13 @@ mod platform {
         }
 
         fn icon_pixmap(&self) -> Vec<Icon> {
-            TRAY_ICON_SIZES.into_iter().map(tray_icon).collect()
+            TRAY_ICON_PNGS.into_iter().filter_map(tray_icon).collect()
         }
 
         fn tool_tip(&self) -> ToolTip {
             ToolTip {
                 icon_name: self.icon_name(),
-                icon_pixmap: vec![tray_icon(32)],
+                icon_pixmap: tray_icon(icons::RMJ_32_PNG).into_iter().collect(),
                 title: APP_TITLE.to_string(),
                 description: "Click to open controls.".to_string(),
             }
@@ -122,117 +128,27 @@ mod platform {
             .map(PathBuf::from)
             .unwrap_or_else(std::env::temp_dir);
         let icon_dir = base_dir.join("realistic-mouse-jiggler");
-        let icon_path = icon_dir.join("tray-icon.svg");
+        let icon_path = icon_dir.join("rmj.png");
 
         std::fs::create_dir_all(&icon_dir).ok()?;
-        std::fs::write(&icon_path, TRAY_ICON_SVG).ok()?;
+        std::fs::write(&icon_path, icons::RMJ_64_PNG).ok()?;
 
         Some(icon_path)
     }
 
-    fn tray_icon(size: usize) -> Icon {
-        let width = size;
-        let height = size;
-        let mut argb = vec![0; width * height * 4];
+    fn tray_icon(bytes: &[u8]) -> Option<Icon> {
+        let icon = icons::decode_png(bytes).ok()?;
+        let mut argb = Vec::with_capacity(icon.rgba.len());
 
-        for y in 0..height {
-            for x in 0..width {
-                let index = (y * width + x) * 4;
-                let nx = (x as f32 + 0.5) / width as f32;
-                let ny = (y as f32 + 0.5) / height as f32;
-                let body = ((nx - 0.5) / 0.34).powi(2) + ((ny - 0.53) / 0.43).powi(2);
-
-                if body <= 1.0 {
-                    set_argb(&mut argb, index, 255, 248, 250, 252);
-                }
-
-                if (0.78..=1.0).contains(&body) {
-                    set_argb(&mut argb, index, 255, 23, 32, 42);
-                }
-
-                if (0.48..=0.52).contains(&nx) && (0.13..=0.43).contains(&ny) {
-                    set_argb(&mut argb, index, 255, 23, 32, 42);
-                }
-            }
+        for pixel in icon.rgba.chunks_exact(4) {
+            argb.extend_from_slice(&[pixel[3], pixel[0], pixel[1], pixel[2]]);
         }
 
-        draw_rounded_rect(&mut argb, width, height, 0.44, 0.21, 0.12, 0.21);
-        draw_jiggle(&mut argb, width, height);
-
-        Icon {
-            width: width as i32,
-            height: height as i32,
+        Some(Icon {
+            width: icon.width as i32,
+            height: icon.height as i32,
             data: argb,
-        }
-    }
-
-    fn set_argb(data: &mut [u8], index: usize, a: u8, r: u8, g: u8, b: u8) {
-        data[index] = a;
-        data[index + 1] = r;
-        data[index + 2] = g;
-        data[index + 3] = b;
-    }
-
-    fn draw_rounded_rect(
-        data: &mut [u8],
-        width: usize,
-        height: usize,
-        x0: f32,
-        y0: f32,
-        w: f32,
-        h: f32,
-    ) {
-        let radius = w / 2.0;
-        for y in 0..height {
-            for x in 0..width {
-                let nx = (x as f32 + 0.5) / width as f32;
-                let ny = (y as f32 + 0.5) / height as f32;
-                let clamped_x = nx.clamp(x0 + radius, x0 + w - radius);
-                let clamped_y = ny.clamp(y0 + radius, y0 + h - radius);
-                let distance = ((nx - clamped_x).powi(2) + (ny - clamped_y).powi(2)).sqrt();
-
-                if distance <= radius && (x0..=x0 + w).contains(&nx) && (y0..=y0 + h).contains(&ny)
-                {
-                    let index = (y * width + x) * 4;
-                    set_argb(data, index, 255, 116, 221, 167);
-                }
-            }
-        }
-    }
-
-    fn draw_jiggle(data: &mut [u8], width: usize, height: usize) {
-        let thickness = (width as f32 * 0.055).max(1.0);
-        for x in (width / 5)..(width - width / 5) {
-            let progress = x as f32 / (width - 1) as f32;
-            let center_y =
-                height as f32 * (0.63 + 0.055 * (progress * std::f32::consts::TAU * 3.0).sin());
-            draw_dot(data, width, height, x as f32, center_y, thickness);
-        }
-    }
-
-    fn draw_dot(
-        data: &mut [u8],
-        width: usize,
-        height: usize,
-        center_x: f32,
-        center_y: f32,
-        radius: f32,
-    ) {
-        let min_x = (center_x - radius).floor().max(0.0) as usize;
-        let max_x = (center_x + radius).ceil().min((width - 1) as f32) as usize;
-        let min_y = (center_y - radius).floor().max(0.0) as usize;
-        let max_y = (center_y + radius).ceil().min((height - 1) as f32) as usize;
-
-        for y in min_y..=max_y {
-            for x in min_x..=max_x {
-                let distance =
-                    ((x as f32 - center_x).powi(2) + (y as f32 - center_y).powi(2)).sqrt();
-                if distance <= radius {
-                    let index = (y * width + x) * 4;
-                    set_argb(data, index, 255, 48, 209, 88);
-                }
-            }
-        }
+        })
     }
 }
 
@@ -246,7 +162,7 @@ mod platform {
         Icon, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent,
     };
 
-    use crate::events::AppEvent;
+    use crate::{events::AppEvent, icons};
 
     const OPEN_ID: &str = "open";
     const START_ID: &str = "start";
@@ -317,45 +233,10 @@ mod platform {
     }
 
     fn tray_icon() -> Icon {
-        let width = 32;
-        let height = 32;
-        let mut rgba = vec![0; width * height * 4];
-
-        for y in 0..height {
-            for x in 0..width {
-                let index = (y * width + x) * 4;
-                let cx = x as f32 - 16.0;
-                let cy = y as f32 - 16.0;
-                let radius = (cx * cx + cy * cy).sqrt();
-
-                if radius <= 14.0 {
-                    rgba[index] = 29;
-                    rgba[index + 1] = 41;
-                    rgba[index + 2] = 57;
-                    rgba[index + 3] = 255;
-                }
-
-                if (10..=21).contains(&x) && (14..=18).contains(&y) {
-                    rgba[index] = 117;
-                    rgba[index + 1] = 221;
-                    rgba[index + 2] = 167;
-                    rgba[index + 3] = 255;
-                }
-
-                if ((x == 7 || x == 8) && (15..=17).contains(&y))
-                    || ((x == 23 || x == 24) && (15..=17).contains(&y))
-                    || ((x == 9 || x == 22) && y == 16)
-                {
-                    rgba[index] = 117;
-                    rgba[index + 1] = 221;
-                    rgba[index + 2] = 167;
-                    rgba[index + 3] = 255;
-                }
-            }
-        }
-
-        Icon::from_rgba(rgba, width as u32, height as u32)
-            .expect("generated tray icon should be valid")
+        let icon =
+            icons::decode_png(icons::RMJ_32_PNG).expect("embedded RMJ tray icon should be valid");
+        Icon::from_rgba(icon.rgba, icon.width, icon.height)
+            .expect("embedded RMJ tray icon should be valid")
     }
 }
 

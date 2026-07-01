@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Realistic Mouse Jiggler
+Comment=Cross-platform desktop mouse jiggler with realistic motion, tray controls, and global bindings
+Exec=realistic-mouse-jiggler
+Icon=com.visorcraft.realistic-mouse-jiggler
+Terminal=false
+Categories=Utility;
+StartupNotify=true
+StartupWMClass=com.visorcraft.realistic-mouse-jiggler

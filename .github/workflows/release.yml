@@ -1,0 +1,114 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build, for example v0.1.2"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  APP_NAME: realistic-mouse-jiggler
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  linux-binary:
+    name: Linux binary
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            libgl1-mesa-dev \
+            libudev-dev \
+            libwayland-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxkbcommon-dev \
+            libxrandr-dev \
+            pkg-config
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Package binary
+        run: |
+          version="${RELEASE_TAG#v}"
+          mkdir -p dist
+          tar -C target/release -czf "dist/${APP_NAME}-${version}-x86_64-unknown-linux-gnu.tar.gz" "${APP_NAME}"
+          sha256sum dist/* > "dist/${APP_NAME}-${version}-linux.sha256"
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${RELEASE_TAG}"
+          if ! gh release view "${tag}" >/dev/null 2>&1; then
+            gh release create "${tag}" --title "${tag}" --notes "Release ${tag}" || gh release view "${tag}" >/dev/null
+          fi
+          gh release upload "${tag}" dist/* --clobber
+
+  arch-package:
+    name: Arch/CachyOS package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Build package in Arch Linux
+        run: |
+          docker run --rm \
+            -v "${PWD}:/workspace" \
+            -w /workspace \
+            archlinux:base-devel bash -lc '
+              set -euo pipefail
+              pacman -Syu --noconfirm --needed base-devel cargo git libxkbcommon rust
+              useradd -m builder
+              host_uid="$(stat -c "%u" /workspace)"
+              host_gid="$(stat -c "%g" /workspace)"
+              mkdir -p /build
+              cp -a /workspace/. /build/
+              chown -R builder:builder /build
+              su builder -c "cd /build && scripts/build-arch-package.sh"
+              mkdir -p /workspace/dist/arch
+              cp /build/dist/arch/* /workspace/dist/arch/
+              chown -R "${host_uid}:${host_gid}" /workspace/dist
+              cd /workspace/dist/arch
+              sha256sum *.pkg.tar.* > realistic-mouse-jiggler-arch.sha256
+            '
+
+      - name: Publish package asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${RELEASE_TAG}"
+          if ! gh release view "${tag}" >/dev/null 2>&1; then
+            gh release create "${tag}" --title "${tag}" --notes "Release ${tag}" || gh release view "${tag}" >/dev/null
+          fi
+          gh release upload "${tag}" dist/arch/* --clobber

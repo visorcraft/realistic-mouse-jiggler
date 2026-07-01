@@ -3,6 +3,7 @@
 mod app;
 mod config;
 mod events;
+mod icons;
 mod input;
 mod jiggler;
 mod tray;
@@ -28,13 +29,16 @@ fn main() -> eframe::Result<()> {
         Arc::clone(&capture_target),
     );
     jiggler::spawn_jiggler(tx.clone(), Arc::clone(&running), Arc::clone(&config));
+    #[cfg(target_os = "linux")]
+    icons::install_linux_desktop_icon();
 
     let viewport = egui::ViewportBuilder::default()
         .with_app_id("com.visorcraft.realistic-mouse-jiggler")
         .with_title("Realistic Mouse Jiggler")
         .with_inner_size([440.0, 310.0])
         .with_min_inner_size([420.0, 300.0])
-        .with_resizable(false);
+        .with_resizable(false)
+        .with_icon(icons::window_icon());
 
     let native_options = eframe::NativeOptions {
         viewport,
