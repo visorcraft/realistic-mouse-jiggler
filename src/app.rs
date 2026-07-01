@@ -64,6 +64,7 @@ pub struct MouseJigglerApp {
     status: String,
     last_error: Option<String>,
     hidden_to_tray: bool,
+    restoring_from_tray: bool,
     _plasma_watcher: Option<PlasmaTrayWatcher>,
 }
 
@@ -87,6 +88,7 @@ impl MouseJigglerApp {
             status: "Idle.".to_string(),
             last_error: None,
             hidden_to_tray: false,
+            restoring_from_tray: false,
             _plasma_watcher: PlasmaTrayWatcher::install(),
         }
     }
@@ -133,6 +135,7 @@ impl MouseJigglerApp {
     fn show_window(&mut self, ctx: &Context) {
         restore_plasma_window();
         self.hidden_to_tray = false;
+        self.restoring_from_tray = true;
         ctx.send_viewport_cmd(ViewportCommand::Visible(true));
         ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
         ctx.send_viewport_cmd(ViewportCommand::Focus);
@@ -215,7 +218,11 @@ impl eframe::App for MouseJigglerApp {
         self.handle_events(ctx);
 
         let viewport = ctx.input(|input| input.viewport().clone());
-        if viewport.minimized == Some(true) && !self.hidden_to_tray {
+        if self.restoring_from_tray {
+            if viewport.minimized != Some(true) {
+                self.restoring_from_tray = false;
+            }
+        } else if viewport.minimized == Some(true) && !self.hidden_to_tray {
             self.hidden_to_tray = true;
             if !hide_plasma_window_to_tray() {
                 ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
@@ -239,11 +246,30 @@ fn hide_plasma_window_to_tray() -> bool {
     run_kwin_window_script(
         "hide",
         r#"
+const JIGGLER_WINDOW_IDS = [
+    "com.visorcraft.realistic-mouse-jiggler",
+    "realistic-mouse-jiggler",
+    "realistic mouse jiggler",
+];
+
+function windowString(window, key) {
+    return String(window[key] || "").toLowerCase();
+}
+
+function isJigglerWindow(window) {
+    const values = [
+        windowString(window, "desktopFileName"),
+        windowString(window, "resourceClass"),
+        windowString(window, "resourceName"),
+        windowString(window, "caption"),
+    ];
+
+    return values.some((value) => JIGGLER_WINDOW_IDS.includes(value));
+}
+
 const windows = workspace.windowList ? workspace.windowList() : workspace.clientList();
 for (const window of windows) {
-    if (window.resourceClass === "com.visorcraft.realistic-mouse-jiggler"
-        || window.resourceName === "realistic-mouse-jiggler"
-        || window.caption === "Realistic Mouse Jiggler") {
+    if (isJigglerWindow(window)) {
         window.skipTaskbar = true;
         window.minimized = true;
     }
@@ -258,15 +284,34 @@ fn hide_plasma_window_to_tray() -> bool {
 }
 
 #[cfg(target_os = "linux")]
-fn restore_plasma_window() -> bool {
+pub(crate) fn restore_plasma_window() -> bool {
     run_kwin_window_script(
         "show",
         r#"
+const JIGGLER_WINDOW_IDS = [
+    "com.visorcraft.realistic-mouse-jiggler",
+    "realistic-mouse-jiggler",
+    "realistic mouse jiggler",
+];
+
+function windowString(window, key) {
+    return String(window[key] || "").toLowerCase();
+}
+
+function isJigglerWindow(window) {
+    const values = [
+        windowString(window, "desktopFileName"),
+        windowString(window, "resourceClass"),
+        windowString(window, "resourceName"),
+        windowString(window, "caption"),
+    ];
+
+    return values.some((value) => JIGGLER_WINDOW_IDS.includes(value));
+}
+
 const windows = workspace.windowList ? workspace.windowList() : workspace.clientList();
 for (const window of windows) {
-    if (window.resourceClass === "com.visorcraft.realistic-mouse-jiggler"
-        || window.resourceName === "realistic-mouse-jiggler"
-        || window.caption === "Realistic Mouse Jiggler") {
+    if (isJigglerWindow(window)) {
         window.skipTaskbar = false;
         window.minimized = false;
         workspace.activeWindow = window;
@@ -362,14 +407,29 @@ impl Drop for PlasmaTrayWatcher {
 
 #[cfg(target_os = "linux")]
 const KWIN_TRAY_WATCHER_SCRIPT: &str = r#"
-function isJiggler(window) {
-    return window.resourceClass === "com.visorcraft.realistic-mouse-jiggler"
-        || window.resourceName === "realistic-mouse-jiggler"
-        || window.caption === "Realistic Mouse Jiggler";
+const JIGGLER_WINDOW_IDS = [
+    "com.visorcraft.realistic-mouse-jiggler",
+    "realistic-mouse-jiggler",
+    "realistic mouse jiggler",
+];
+
+function windowString(window, key) {
+    return String(window[key] || "").toLowerCase();
+}
+
+function isJigglerWindow(window) {
+    const values = [
+        windowString(window, "desktopFileName"),
+        windowString(window, "resourceClass"),
+        windowString(window, "resourceName"),
+        windowString(window, "caption"),
+    ];
+
+    return values.some((value) => JIGGLER_WINDOW_IDS.includes(value));
 }
 
 function syncJigglerTaskbar(window) {
-    if (!isJiggler(window)) {
+    if (!isJigglerWindow(window)) {
         return;
     }
 
@@ -381,7 +441,7 @@ function syncJigglerTaskbar(window) {
 }
 
 function watchJiggler(window) {
-    if (!isJiggler(window)) {
+    if (!isJigglerWindow(window)) {
         return;
     }
 

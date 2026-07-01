@@ -1,6 +1,6 @@
 #[cfg(target_os = "linux")]
 mod platform {
-    use std::{path::PathBuf, sync::mpsc::Sender};
+    use std::{path::PathBuf, sync::mpsc::Sender, thread};
 
     use eframe::egui;
     use ksni::{blocking::TrayMethods, menu::StandardItem, Icon, MenuItem, ToolTip, Tray};
@@ -51,6 +51,11 @@ mod platform {
             let _ = self.tx.send(event);
             self.egui_ctx.request_repaint();
         }
+
+        fn open(&self) {
+            thread::spawn(crate::app::restore_plasma_window);
+            self.send(AppEvent::ShowWindow);
+        }
     }
 
     impl Tray for LinuxTray {
@@ -80,18 +85,27 @@ mod platform {
         }
 
         fn activate(&mut self, _x: i32, _y: i32) {
-            self.send(AppEvent::ShowWindow);
+            self.open();
         }
 
         fn menu(&self) -> Vec<MenuItem<Self>> {
             vec![
-                item("Open", AppEvent::ShowWindow),
+                open_item(),
                 item("Start", AppEvent::StartRequested),
                 item("Stop", AppEvent::StopRequested),
                 MenuItem::Separator,
                 item("Quit", AppEvent::QuitRequested),
             ]
         }
+    }
+
+    fn open_item() -> MenuItem<LinuxTray> {
+        StandardItem {
+            label: "Open".to_string(),
+            activate: Box::new(|tray: &mut LinuxTray| tray.open()),
+            ..Default::default()
+        }
+        .into()
     }
 
     fn item(label: &str, event: AppEvent) -> MenuItem<LinuxTray> {
