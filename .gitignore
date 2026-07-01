@@ -1,0 +1,50 @@
+# Rust build output
+/target/
+
+# Generated release/package artifacts
+/dist/
+/pkg/
+/packages/
+*.deb
+*.rpm
+*.AppImage
+*.dmg
+*.msi
+*.exe
+
+# Logs and crash dumps
+*.log
+*.pid
+*.stackdump
+crash-*.txt
+
+# Local environment/config files
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+
+# Editor and IDE state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+# Rust backup files produced by rustfmt/cargo fix
+*.rs.bk

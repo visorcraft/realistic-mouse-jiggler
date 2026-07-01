@@ -1,0 +1,28 @@
+[package]
+name = "realistic-mouse-jiggler"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Cross-platform desktop mouse jiggler with realistic motion, tray controls, and global bindings."
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0.103"
+directories = "6.0.0"
+eframe = "0.35.0"
+enigo = { version = "0.6.1", features = ["wayland"] }
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "1.1.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ksni = { version = "0.3.5", default-features = false, features = ["async-io", "blocking"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10.1"
+core-graphics = "0.25.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+tray-icon = { version = "0.24.1", default-features = false }
