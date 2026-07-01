@@ -70,7 +70,8 @@ target/release/realistic-mouse-jiggler
 
 ### Arch / CachyOS
 
-Import the VisorCraft package signing key:
+Install from the signed pacman repository. First import and locally trust
+the VisorCraft package signing key:
 
 ```bash
 curl -fsSLo /tmp/visorcraft-packages.asc \
@@ -79,7 +80,7 @@ sudo pacman-key --add /tmp/visorcraft-packages.asc
 sudo pacman-key --lsign-key 55B2BE2BCE1FE5E61D39C2863C7B024310156D2E
 ```
 
-Then add the GitHub release as a small pacman repository:
+Add the release repository to `/etc/pacman.conf`:
 
 ```ini
 [realistic-mouse-jiggler]
@@ -87,14 +88,15 @@ SigLevel = Required
 Server = https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download
 ```
 
-Then install:
+Then sync and install with pacman:
 
 ```bash
 sudo pacman -Syu realistic-mouse-jiggler
 ```
 
-Release assets include detached GPG signatures, including the
-`.pkg.tar.zst.sig` file pacman checks for direct URL installs.
+Direct `pacman -U` installs from release package URLs work as well. Each
+`.pkg.tar.zst` asset is published with the matching `.pkg.tar.zst.sig`
+file that pacman expects.
 
 ### Linux Tarball
 
