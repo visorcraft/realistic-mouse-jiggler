@@ -16,6 +16,7 @@ permissions:
 env:
   APP_NAME: realistic-mouse-jiggler
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  WINDOWS_TARGET: x86_64-pc-windows-msvc
 
 jobs:
   linux-binary:
@@ -24,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
 
@@ -71,13 +72,170 @@ jobs:
           fi
           gh release upload "${tag}" dist/* --clobber
 
+  windows-artifacts:
+    name: Windows signed artifacts
+    runs-on: windows-2022
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Install Rust
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add $env:WINDOWS_TARGET
+
+      - name: Install Windows installer tools
+        shell: pwsh
+        run: |
+          cargo install cargo-wix --version 0.3.9 --locked
+          if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+            choco install wixtoolset --no-progress -y
+            $wixBin = Get-ChildItem "${env:ProgramFiles(x86)}" -Directory -Filter "WiX Toolset*" |
+              Sort-Object Name -Descending |
+              ForEach-Object { Join-Path $_.FullName "bin" } |
+              Where-Object { Test-Path (Join-Path $_ "candle.exe") } |
+              Select-Object -First 1
+            if ($wixBin) {
+              Add-Content $env:GITHUB_PATH $wixBin
+            }
+          }
+
+      - name: Test
+        shell: pwsh
+        run: cargo test --locked --target $env:WINDOWS_TARGET
+
+      - name: Build
+        shell: pwsh
+        run: cargo build --release --locked --target $env:WINDOWS_TARGET
+
+      - name: Azure login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign Windows executable
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files: ${{ github.workspace }}\target\${{ env.WINDOWS_TARGET }}\release\${{ env.APP_NAME }}.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: Realistic Mouse Jiggler
+          description-url: https://github.com/visorcraft/realistic-mouse-jiggler
+
+      - name: Verify executable signature
+        shell: pwsh
+        run: |
+          $exe = "target\$env:WINDOWS_TARGET\release\$env:APP_NAME.exe"
+          $signature = Get-AuthenticodeSignature $exe
+          $signature | Format-List
+          if ($signature.Status -ne "Valid") {
+            throw "Executable signature is $($signature.Status)."
+          }
+
+      - name: Package Windows artifacts
+        shell: pwsh
+        run: |
+          $version = ($env:RELEASE_TAG).TrimStart("v")
+          $targetDir = Join-Path $PWD.Path "target\$env:WINDOWS_TARGET\release"
+          $distDir = Join-Path $PWD.Path "dist\windows"
+          New-Item -ItemType Directory -Force $distDir | Out-Null
+
+          $signedExe = Join-Path $targetDir "$env:APP_NAME.exe"
+          Copy-Item $signedExe (Join-Path $distDir "$env:APP_NAME-$version-$env:WINDOWS_TARGET.exe")
+          $zipPath = Join-Path $distDir "$env:APP_NAME-$version-$env:WINDOWS_TARGET.zip"
+          $msiPath = Join-Path $distDir "$env:APP_NAME-$version-$env:WINDOWS_TARGET.msi"
+
+          Compress-Archive `
+            -Path $signedExe, "LICENSE", "README.md" `
+            -DestinationPath $zipPath `
+            -Force
+
+          cargo wix `
+            --no-build `
+            --target $env:WINDOWS_TARGET `
+            --target-bin-dir $targetDir `
+            --output $msiPath `
+            --nocapture
+
+      - name: Sign Windows installer
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}\dist\windows
+          files-folder-filter: msi
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: Realistic Mouse Jiggler Installer
+          description-url: https://github.com/visorcraft/realistic-mouse-jiggler
+
+      - name: Verify installer signature
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem "dist\windows\*.msi" | Select-Object -First 1
+          if (-not $msi) {
+            throw "MSI artifact was not created."
+          }
+          $signature = Get-AuthenticodeSignature $msi.FullName
+          $signature | Format-List
+          if ($signature.Status -ne "Valid") {
+            throw "MSI signature is $($signature.Status)."
+          }
+
+      - name: Checksum Windows artifacts
+        shell: pwsh
+        run: |
+          $version = ($env:RELEASE_TAG).TrimStart("v")
+          Push-Location "dist\windows"
+          Get-ChildItem -File |
+            Where-Object { $_.Name -notlike "*.sha256" } |
+            Sort-Object Name |
+            ForEach-Object {
+              $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              "$hash  $($_.Name)"
+            } | Set-Content "$env:APP_NAME-$version-windows.sha256"
+          Pop-Location
+
+      - name: Publish Windows assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title $tag --notes "Release $tag"
+            if ($LASTEXITCODE -ne 0) {
+              gh release view $tag *> $null
+            }
+          }
+          $assets = Get-ChildItem "dist\windows" -File | ForEach-Object { $_.FullName }
+          gh release upload $tag @assets --clobber
+
   arch-package:
     name: Arch/CachyOS package
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
 

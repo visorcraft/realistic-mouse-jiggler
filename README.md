@@ -97,6 +97,15 @@ Linux release tarballs are available on the releases page:
 https://github.com/visorcraft/realistic-mouse-jiggler/releases
 ```
 
+### Windows
+
+Windows releases include a signed MSI installer and a signed standalone
+`.exe` on the releases page:
+
+```text
+https://github.com/visorcraft/realistic-mouse-jiggler/releases
+```
+
 ---
 
 ## Runtime Notes

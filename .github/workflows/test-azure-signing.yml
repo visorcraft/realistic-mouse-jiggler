@@ -7,15 +7,30 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  APP_NAME: realistic-mouse-jiggler
+  WINDOWS_TARGET: x86_64-pc-windows-msvc
+
 jobs:
   test-auth:
-    name: Test Azure OIDC auth
+    name: Test Azure executable signing
     runs-on: windows-2022
     environment: release
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: Install Rust
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add $env:WINDOWS_TARGET
+
+      - name: Build Windows executable
+        shell: pwsh
+        run: cargo build --release --locked --target $env:WINDOWS_TARGET
 
       - name: Azure login
         uses: azure/login@v3
@@ -24,6 +39,25 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Show Azure account
+      - name: Sign Windows executable
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files: ${{ github.workspace }}\target\${{ env.WINDOWS_TARGET }}\release\${{ env.APP_NAME }}.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: Realistic Mouse Jiggler
+          description-url: https://github.com/visorcraft/realistic-mouse-jiggler
+
+      - name: Verify executable signature
         shell: pwsh
-        run: az account show
+        run: |
+          $exe = "target\$env:WINDOWS_TARGET\release\$env:APP_NAME.exe"
+          $signature = Get-AuthenticodeSignature $exe
+          $signature | Format-List
+          if ($signature.Status -ne "Valid") {
+            throw "Executable signature is $($signature.Status)."
+          }
