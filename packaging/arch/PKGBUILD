@@ -9,6 +9,7 @@ url="https://github.com/visorcraft/realistic-mouse-jiggler"
 license=('MIT')
 depends=('gcc-libs' 'glibc' 'libxkbcommon')
 makedepends=('cargo' 'git')
+options=('!debug')
 optdepends=(
   'ydotool: preferred cursor movement backend on Wayland'
   'systemd: run the ydotool user service on Wayland'

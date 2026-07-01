@@ -12,6 +12,7 @@ pkgbase = realistic-mouse-jiggler
 	depends = libxkbcommon
 	optdepends = ydotool: preferred cursor movement backend on Wayland
 	optdepends = systemd: run the ydotool user service on Wayland
+	options = !debug
 	source = realistic-mouse-jiggler::git+https://github.com/visorcraft/realistic-mouse-jiggler.git#tag=v0.1.2
 	sha256sums = SKIP
 
