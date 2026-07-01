@@ -50,7 +50,7 @@ Upload that directory to static hosting. Users can then add:
 
 ```ini
 [realistic-mouse-jiggler]
-SigLevel = Optional TrustAll
+SigLevel = Required
 Server = https://<your-host>/realistic-mouse-jiggler/$arch
 ```
 
@@ -60,15 +60,27 @@ Then they can install with:
 sudo pacman -Syu realistic-mouse-jiggler
 ```
 
-Use signed packages and a stricter `SigLevel` before treating the repository as production infrastructure.
+For production hosting, publish matching `.sig` files and distribute the
+public package signing key before users install.
 
 ## GitHub Release Pacman Repo
 
-The release workflow uploads the package plus `realistic-mouse-jiggler.db` and `realistic-mouse-jiggler.files` assets. Users can install from the latest release with:
+The release workflow uploads the signed package plus
+`realistic-mouse-jiggler.db` and `realistic-mouse-jiggler.files` assets.
+Import and locally trust the VisorCraft package signing key:
+
+```bash
+curl -fsSLo /tmp/visorcraft-packages.asc \
+  https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/visorcraft-packages.asc
+sudo pacman-key --add /tmp/visorcraft-packages.asc
+sudo pacman-key --lsign-key 55B2BE2BCE1FE5E61D39C2863C7B024310156D2E
+```
+
+Users can then install from the latest release with:
 
 ```ini
 [realistic-mouse-jiggler]
-SigLevel = Optional TrustAll
+SigLevel = Required
 Server = https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download
 ```
 
@@ -76,6 +88,12 @@ Then:
 
 ```bash
 sudo pacman -Syu realistic-mouse-jiggler
+```
+
+Direct latest-release package installs use the stable package alias:
+
+```bash
+sudo pacman -U https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler-x86_64.pkg.tar.zst
 ```
 
 This is convenient for one package. A dedicated static host or GitHub Pages repo is cleaner if more packages are added.

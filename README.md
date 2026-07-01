@@ -94,25 +94,35 @@ Then sync and install with pacman:
 sudo pacman -Syu realistic-mouse-jiggler
 ```
 
-Direct `pacman -U` installs from release package URLs work as well. Each
-`.pkg.tar.zst` asset is published with the matching `.pkg.tar.zst.sig`
-file that pacman expects.
+Direct `pacman -U` installs from the latest release URL work as well:
+
+```bash
+sudo pacman -U https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler-x86_64.pkg.tar.zst
+```
+
+Each `.pkg.tar.zst` asset is published with the matching
+`.pkg.tar.zst.sig` file that pacman expects.
 
 ### Linux Tarball
 
-Linux release tarballs are available on the releases page:
+Download the latest Linux tarball:
 
-```text
-https://github.com/visorcraft/realistic-mouse-jiggler/releases
+```bash
+curl -LO https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler-linux-x86_64.tar.gz
 ```
 
 ### Windows
 
-Windows releases include a signed MSI installer and a signed standalone
-`.exe` on the releases page:
+Download the latest signed Windows installer:
 
 ```text
-https://github.com/visorcraft/realistic-mouse-jiggler/releases
+https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.msi
+```
+
+Or the signed standalone `.exe`:
+
+```text
+https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.exe
 ```
 
 ---

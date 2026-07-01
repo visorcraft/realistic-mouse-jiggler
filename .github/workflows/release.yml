@@ -60,8 +60,12 @@ jobs:
         run: |
           version="${RELEASE_TAG#v}"
           mkdir -p dist
-          tar -C target/release -czf "dist/${APP_NAME}-${version}-x86_64-unknown-linux-gnu.tar.gz" "${APP_NAME}"
-          sha256sum dist/* > "dist/${APP_NAME}-${version}-linux.sha256"
+          versioned_archive="dist/${APP_NAME}-${version}-x86_64-unknown-linux-gnu.tar.gz"
+          latest_archive="dist/${APP_NAME}-linux-x86_64.tar.gz"
+          tar -C target/release -czf "${versioned_archive}" "${APP_NAME}"
+          cp -f "${versioned_archive}" "${latest_archive}"
+          sha256sum "${versioned_archive}" "${latest_archive}" > "dist/${APP_NAME}-${version}-linux.sha256"
+          cp -f "dist/${APP_NAME}-${version}-linux.sha256" "dist/${APP_NAME}-linux.sha256"
 
       - name: Publish release assets
         env:
@@ -158,13 +162,17 @@ jobs:
 
           $signedExe = Join-Path $targetDir "$env:APP_NAME.exe"
           Copy-Item $signedExe (Join-Path $distDir "$env:APP_NAME-$version-$env:WINDOWS_TARGET.exe")
+          Copy-Item $signedExe (Join-Path $distDir "$env:APP_NAME.exe")
           $zipPath = Join-Path $distDir "$env:APP_NAME-$version-$env:WINDOWS_TARGET.zip"
+          $latestZipPath = Join-Path $distDir "$env:APP_NAME-windows-x86_64.zip"
           $msiPath = Join-Path $distDir "$env:APP_NAME-$version-$env:WINDOWS_TARGET.msi"
+          $latestMsiPath = Join-Path $distDir "$env:APP_NAME.msi"
 
           Compress-Archive `
             -Path $signedExe, "LICENSE", "README.md" `
             -DestinationPath $zipPath `
             -Force
+          Copy-Item $zipPath $latestZipPath
 
           cargo wix `
             --no-build `
@@ -172,6 +180,7 @@ jobs:
             --target-bin-dir $targetDir `
             --output $msiPath `
             --nocapture
+          Copy-Item $msiPath $latestMsiPath
 
       - name: Sign Windows installer
         uses: azure/artifact-signing-action@v2
@@ -212,6 +221,7 @@ jobs:
               $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
               "$hash  $($_.Name)"
             } | Set-Content "$env:APP_NAME-$version-windows.sha256"
+          Copy-Item "$env:APP_NAME-$version-windows.sha256" "$env:APP_NAME-windows.sha256"
           Pop-Location
 
       - name: Publish Windows assets
@@ -266,6 +276,12 @@ jobs:
               if [[ ! -e realistic-mouse-jiggler.files || ! realistic-mouse-jiggler.files.tar.gz -ef realistic-mouse-jiggler.files ]]; then
                 cp -f realistic-mouse-jiggler.files.tar.gz realistic-mouse-jiggler.files
               fi
+              package="$(find . -maxdepth 1 -type f -name "realistic-mouse-jiggler-[0-9]*.pkg.tar.*" ! -name "*.sig" -printf "%f\n" | sort | head -n 1)"
+              if [[ -z "${package}" ]]; then
+                echo "No Arch package artifact was produced." >&2
+                exit 1
+              fi
+              cp -f "${package}" "realistic-mouse-jiggler-x86_64.pkg.tar.${package#*.pkg.tar.}"
               sha256sum *.pkg.tar.* > realistic-mouse-jiggler-arch.sha256
             '
 
