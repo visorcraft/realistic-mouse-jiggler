@@ -12,6 +12,9 @@ use eframe::egui::{
     ViewportCommand,
 };
 
+#[cfg(target_os = "linux")]
+use std::process::{Command, Stdio};
+
 use crate::{
     config::{self, AppConfig, Binding, MovementMode},
     events::AppEvent,
@@ -60,6 +63,8 @@ pub struct MouseJigglerApp {
     tray: Option<TrayState>,
     status: String,
     last_error: Option<String>,
+    hidden_to_tray: bool,
+    _plasma_watcher: Option<PlasmaTrayWatcher>,
 }
 
 impl MouseJigglerApp {
@@ -81,6 +86,8 @@ impl MouseJigglerApp {
             tray: None,
             status: "Idle.".to_string(),
             last_error: None,
+            hidden_to_tray: false,
+            _plasma_watcher: PlasmaTrayWatcher::install(),
         }
     }
 
@@ -124,6 +131,8 @@ impl MouseJigglerApp {
     }
 
     fn show_window(&mut self, ctx: &Context) {
+        restore_plasma_window();
+        self.hidden_to_tray = false;
         ctx.send_viewport_cmd(ViewportCommand::Visible(true));
         ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
         ctx.send_viewport_cmd(ViewportCommand::Focus);
@@ -206,9 +215,12 @@ impl eframe::App for MouseJigglerApp {
         self.handle_events(ctx);
 
         let viewport = ctx.input(|input| input.viewport().clone());
-        if viewport.minimized == Some(true) {
-            ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
-            ctx.send_viewport_cmd(ViewportCommand::Visible(false));
+        if viewport.minimized == Some(true) && !self.hidden_to_tray {
+            self.hidden_to_tray = true;
+            if !hide_plasma_window_to_tray() {
+                ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
+                ctx.send_viewport_cmd(ViewportCommand::Visible(false));
+            }
             self.status = "Minimized to tray.".to_string();
         }
 
@@ -220,6 +232,242 @@ impl eframe::App for MouseJigglerApp {
             .frame(egui::Frame::default().fill(PANEL_BG))
             .show(ui, |ui| self.render_ui(ui));
     }
+}
+
+#[cfg(target_os = "linux")]
+fn hide_plasma_window_to_tray() -> bool {
+    run_kwin_window_script(
+        "hide",
+        r#"
+const windows = workspace.windowList ? workspace.windowList() : workspace.clientList();
+for (const window of windows) {
+    if (window.resourceClass === "com.visorcraft.realistic-mouse-jiggler"
+        || window.resourceName === "realistic-mouse-jiggler"
+        || window.caption === "Realistic Mouse Jiggler") {
+        window.skipTaskbar = true;
+        window.minimized = true;
+    }
+}
+"#,
+    )
+}
+
+#[cfg(not(target_os = "linux"))]
+fn hide_plasma_window_to_tray() -> bool {
+    false
+}
+
+#[cfg(target_os = "linux")]
+fn restore_plasma_window() -> bool {
+    run_kwin_window_script(
+        "show",
+        r#"
+const windows = workspace.windowList ? workspace.windowList() : workspace.clientList();
+for (const window of windows) {
+    if (window.resourceClass === "com.visorcraft.realistic-mouse-jiggler"
+        || window.resourceName === "realistic-mouse-jiggler"
+        || window.caption === "Realistic Mouse Jiggler") {
+        window.skipTaskbar = false;
+        window.minimized = false;
+        workspace.activeWindow = window;
+    }
+}
+"#,
+    )
+}
+
+#[cfg(not(target_os = "linux"))]
+fn restore_plasma_window() -> bool {
+    false
+}
+
+struct PlasmaTrayWatcher {
+    #[cfg(target_os = "linux")]
+    plugin_name: String,
+}
+
+impl PlasmaTrayWatcher {
+    #[cfg(target_os = "linux")]
+    fn install() -> Option<Self> {
+        if !is_kde_session() || !command_exists("qdbus6") {
+            return None;
+        }
+
+        let plugin_name = "realistic-mouse-jiggler-watch".to_string();
+        let script_path = std::env::temp_dir().join(format!("{plugin_name}.js"));
+
+        if std::fs::write(&script_path, KWIN_TRAY_WATCHER_SCRIPT).is_err() {
+            return None;
+        }
+
+        let _ = Command::new("qdbus6")
+            .args([
+                "org.kde.KWin",
+                "/Scripting",
+                "org.kde.kwin.Scripting.unloadScript",
+            ])
+            .arg(&plugin_name)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+
+        let loaded = Command::new("qdbus6")
+            .args([
+                "org.kde.KWin",
+                "/Scripting",
+                "org.kde.kwin.Scripting.loadScript",
+            ])
+            .arg(&script_path)
+            .arg(&plugin_name)
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false);
+
+        if !loaded {
+            let _ = std::fs::remove_file(script_path);
+            return None;
+        }
+
+        let _ = Command::new("qdbus6")
+            .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.start"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = std::fs::remove_file(script_path);
+
+        Some(Self { plugin_name })
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn install() -> Option<Self> {
+        None
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for PlasmaTrayWatcher {
+    fn drop(&mut self) {
+        let _ = Command::new("qdbus6")
+            .args([
+                "org.kde.KWin",
+                "/Scripting",
+                "org.kde.kwin.Scripting.unloadScript",
+            ])
+            .arg(&self.plugin_name)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
+#[cfg(target_os = "linux")]
+const KWIN_TRAY_WATCHER_SCRIPT: &str = r#"
+function isJiggler(window) {
+    return window.resourceClass === "com.visorcraft.realistic-mouse-jiggler"
+        || window.resourceName === "realistic-mouse-jiggler"
+        || window.caption === "Realistic Mouse Jiggler";
+}
+
+function syncJigglerTaskbar(window) {
+    if (!isJiggler(window)) {
+        return;
+    }
+
+    if (window.minimized && !window.skipTaskbar) {
+        window.skipTaskbar = true;
+    } else if (!window.minimized && window.skipTaskbar) {
+        window.skipTaskbar = false;
+    }
+}
+
+function watchJiggler(window) {
+    if (!isJiggler(window)) {
+        return;
+    }
+
+    syncJigglerTaskbar(window);
+    if (window.minimizedChanged) {
+        window.minimizedChanged.connect(() => syncJigglerTaskbar(window));
+    }
+}
+
+const windows = workspace.windowList ? workspace.windowList() : workspace.clientList();
+for (const window of windows) {
+    watchJiggler(window);
+}
+
+if (workspace.windowAdded) {
+    workspace.windowAdded.connect(watchJiggler);
+} else if (workspace.clientAdded) {
+    workspace.clientAdded.connect(watchJiggler);
+}
+"#;
+
+#[cfg(target_os = "linux")]
+fn run_kwin_window_script(action: &str, script: &str) -> bool {
+    if !is_kde_session() || !command_exists("qdbus6") {
+        return false;
+    }
+
+    let plugin_name = format!("realistic-mouse-jiggler-{action}-{}", std::process::id());
+    let script_path = std::env::temp_dir().join(format!("{plugin_name}.js"));
+
+    if std::fs::write(&script_path, script).is_err() {
+        return false;
+    }
+
+    let loaded = Command::new("qdbus6")
+        .args([
+            "org.kde.KWin",
+            "/Scripting",
+            "org.kde.kwin.Scripting.loadScript",
+        ])
+        .arg(&script_path)
+        .arg(&plugin_name)
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+
+    if loaded {
+        let _ = Command::new("qdbus6")
+            .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.start"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = Command::new("qdbus6")
+            .args([
+                "org.kde.KWin",
+                "/Scripting",
+                "org.kde.kwin.Scripting.unloadScript",
+            ])
+            .arg(&plugin_name)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+
+    let _ = std::fs::remove_file(script_path);
+    loaded
+}
+
+#[cfg(target_os = "linux")]
+fn is_kde_session() -> bool {
+    std::env::var("XDG_CURRENT_DESKTOP")
+        .map(|desktop| desktop.to_ascii_lowercase().contains("kde"))
+        .unwrap_or(false)
+        || std::env::var("KDE_FULL_SESSION")
+            .map(|value| value.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
+}
+
+#[cfg(target_os = "linux")]
+fn command_exists(command: &str) -> bool {
+    Command::new("sh")
+        .arg("-c")
+        .arg(format!("command -v {command} >/dev/null 2>&1"))
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
 }
 
 impl MouseJigglerApp {
