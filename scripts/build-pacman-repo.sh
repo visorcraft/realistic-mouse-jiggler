@@ -21,6 +21,11 @@ if (( ${#packages[@]} == 0 )); then
   exit 1
 fi
 
+rm -f \
+  "${repo_dir}/${repo_name}-"*.pkg.tar.* \
+  "${repo_dir}/${repo_name}.db"* \
+  "${repo_dir}/${repo_name}.files"*
+
 cp -f "${packages[@]}" "${repo_dir}/"
 
 (
