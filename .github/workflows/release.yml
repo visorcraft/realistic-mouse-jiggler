@@ -100,6 +100,9 @@ jobs:
               cp /build/dist/arch/realistic-mouse-jiggler-[0-9]*.pkg.tar.* /workspace/dist/arch/
               chown -R "${host_uid}:${host_gid}" /workspace/dist
               cd /workspace/dist/arch
+              repo-add realistic-mouse-jiggler.db.tar.gz realistic-mouse-jiggler-[0-9]*.pkg.tar.*
+              cp realistic-mouse-jiggler.db.tar.gz realistic-mouse-jiggler.db
+              cp realistic-mouse-jiggler.files.tar.gz realistic-mouse-jiggler.files
               sha256sum *.pkg.tar.* > realistic-mouse-jiggler-arch.sha256
             '
 

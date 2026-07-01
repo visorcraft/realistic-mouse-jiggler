@@ -62,6 +62,24 @@ sudo pacman -Sy realistic-mouse-jiggler
 
 Use signed packages and a stricter `SigLevel` before treating the repository as production infrastructure.
 
+## GitHub Release Pacman Repo
+
+The release workflow uploads the package plus `realistic-mouse-jiggler.db` and `realistic-mouse-jiggler.files` assets. Once the repository is public, users can install from the latest release with:
+
+```ini
+[realistic-mouse-jiggler]
+SigLevel = Optional TrustAll
+Server = https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download
+```
+
+Then:
+
+```bash
+sudo pacman -Sy realistic-mouse-jiggler
+```
+
+This is convenient for one package. A dedicated static host or GitHub Pages repo is cleaner if more packages are added.
+
 ## GitHub Pages Hosting
 
 GitHub Pages is a good fit for the pacman repo directory, but the repository or Pages site must be publicly reachable for normal users. This repository is currently private, so a Pages pacman repo would not be a public install source until visibility/Pages settings change.
