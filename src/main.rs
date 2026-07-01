@@ -21,7 +21,12 @@ fn main() -> eframe::Result<()> {
     let capture_target: SharedCaptureTarget = Arc::new(Mutex::new(None));
     let (tx, rx) = mpsc::channel();
 
-    input::spawn_input_listener(tx.clone(), Arc::clone(&config), Arc::clone(&capture_target));
+    input::spawn_input_listener(
+        tx.clone(),
+        Arc::clone(&running),
+        Arc::clone(&config),
+        Arc::clone(&capture_target),
+    );
     jiggler::spawn_jiggler(tx.clone(), Arc::clone(&running), Arc::clone(&config));
 
     let viewport = egui::ViewportBuilder::default()

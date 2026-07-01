@@ -1,4 +1,8 @@
-use std::sync::{mpsc::Sender, Arc, Mutex, RwLock};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    mpsc::Sender,
+    Arc, Mutex, RwLock,
+};
 
 use crate::{
     config::{AppConfig, Binding, BindingKind},
@@ -15,15 +19,17 @@ pub type SharedCaptureTarget = Arc<Mutex<Option<BindTarget>>>;
 
 pub fn spawn_input_listener(
     tx: Sender<AppEvent>,
+    running: Arc<AtomicBool>,
     config: Arc<RwLock<AppConfig>>,
     capture_target: SharedCaptureTarget,
 ) {
-    platform::spawn_input_listener(tx, config, capture_target);
+    platform::spawn_input_listener(tx, running, config, capture_target);
 }
 
 fn handle_binding(
     binding: Binding,
     tx: &Sender<AppEvent>,
+    running: &Arc<AtomicBool>,
     config: &Arc<RwLock<AppConfig>>,
     capture_target: &SharedCaptureTarget,
 ) {
@@ -41,9 +47,11 @@ fn handle_binding(
     };
 
     if config.start_binding.as_ref() == Some(&binding) {
-        let _ = tx.send(AppEvent::StartRequested);
+        running.store(true, Ordering::SeqCst);
+        let _ = tx.send(AppEvent::Status("Running.".to_string()));
     } else if config.stop_binding.as_ref() == Some(&binding) {
-        let _ = tx.send(AppEvent::StopRequested);
+        running.store(false, Ordering::SeqCst);
+        let _ = tx.send(AppEvent::Status("Stopped.".to_string()));
     }
 }
 
@@ -54,7 +62,7 @@ mod platform {
         io::Read,
         os::unix::fs::FileTypeExt,
         path::PathBuf,
-        sync::{mpsc::Sender, Arc, RwLock},
+        sync::{atomic::AtomicBool, mpsc::Sender, Arc, RwLock},
         thread,
     };
 
@@ -75,6 +83,7 @@ mod platform {
 
     pub fn spawn_input_listener(
         tx: Sender<AppEvent>,
+        running: Arc<AtomicBool>,
         config: Arc<RwLock<AppConfig>>,
         capture_target: SharedCaptureTarget,
     ) {
@@ -90,6 +99,7 @@ mod platform {
             let mut opened = 0usize;
             for device in devices {
                 let tx = tx.clone();
+                let running = Arc::clone(&running);
                 let config = Arc::clone(&config);
                 let capture_target = Arc::clone(&capture_target);
 
@@ -97,7 +107,7 @@ mod platform {
                     Ok(file) => {
                         opened += 1;
                         thread::spawn(move || {
-                            read_device_loop(device, file, tx, config, capture_target)
+                            read_device_loop(device, file, tx, running, config, capture_target)
                         });
                     }
                     Err(error) => {
@@ -192,6 +202,7 @@ mod platform {
         device: InputDevice,
         mut file: File,
         tx: Sender<AppEvent>,
+        running: Arc<AtomicBool>,
         config: Arc<RwLock<AppConfig>>,
         capture_target: SharedCaptureTarget,
     ) {
@@ -220,7 +231,7 @@ mod platform {
 
             if event_type == EV_KEY && value == KEY_PRESS {
                 if let Some(binding) = linux_binding(code) {
-                    handle_binding(binding, &tx, &config, &capture_target);
+                    handle_binding(binding, &tx, &running, &config, &capture_target);
                 }
             }
         }
@@ -352,7 +363,7 @@ mod platform {
 #[cfg(target_os = "windows")]
 mod platform {
     use std::{
-        sync::{mpsc::Sender, Arc, Mutex, OnceLock, RwLock},
+        sync::{atomic::AtomicBool, mpsc::Sender, Arc, Mutex, OnceLock, RwLock},
         thread,
     };
 
@@ -371,12 +382,14 @@ mod platform {
 
     struct HookState {
         tx: Sender<AppEvent>,
+        running: Arc<AtomicBool>,
         config: Arc<RwLock<AppConfig>>,
         capture_target: SharedCaptureTarget,
     }
 
     pub fn spawn_input_listener(
         tx: Sender<AppEvent>,
+        running: Arc<AtomicBool>,
         config: Arc<RwLock<AppConfig>>,
         capture_target: SharedCaptureTarget,
     ) {
@@ -385,6 +398,7 @@ mod platform {
             if HOOK_STATE
                 .set(Mutex::new(HookState {
                     tx,
+                    running,
                     config,
                     capture_target,
                 }))
@@ -474,7 +488,13 @@ mod platform {
             return;
         };
 
-        handle_binding(binding, &state.tx, &state.config, &state.capture_target);
+        handle_binding(
+            binding,
+            &state.tx,
+            &state.running,
+            &state.config,
+            &state.capture_target,
+        );
     }
 
     fn key_binding(vk_code: u32) -> Binding {
@@ -539,7 +559,7 @@ mod platform {
 #[cfg(target_os = "macos")]
 mod platform {
     use std::{
-        sync::{mpsc::Sender, Arc, RwLock},
+        sync::{atomic::AtomicBool, mpsc::Sender, Arc, RwLock},
         thread,
     };
 
@@ -553,6 +573,7 @@ mod platform {
 
     pub fn spawn_input_listener(
         tx: Sender<AppEvent>,
+        running: Arc<AtomicBool>,
         config: Arc<RwLock<AppConfig>>,
         capture_target: SharedCaptureTarget,
     ) {
@@ -575,7 +596,7 @@ mod platform {
                 ],
                 move |_proxy, event_type, event| {
                     if let Some(binding) = event_binding(event_type, event) {
-                        handle_binding(binding, &tx, &config, &capture_target);
+                        handle_binding(binding, &tx, &running, &config, &capture_target);
                     }
 
                     CallbackResult::Keep
@@ -739,12 +760,13 @@ mod platform {
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 mod platform {
-    use std::sync::{mpsc::Sender, Arc, RwLock};
+    use std::sync::{atomic::AtomicBool, mpsc::Sender, Arc, RwLock};
 
     use super::{AppConfig, AppEvent, SharedCaptureTarget};
 
     pub fn spawn_input_listener(
         tx: Sender<AppEvent>,
+        _running: Arc<AtomicBool>,
         _config: Arc<RwLock<AppConfig>>,
         _capture_target: SharedCaptureTarget,
     ) {
