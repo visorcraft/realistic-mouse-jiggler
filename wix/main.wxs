@@ -112,27 +112,6 @@
                     </Component>
                 </Directory>
             </Directory>
-            <Directory Id='ProgramMenuFolder'>
-                <Directory Id='ApplicationProgramsFolder' Name='Realistic Mouse Jiggler'>
-                    <Component Id='ApplicationShortcut' Guid='*'>
-                        <Shortcut
-                            Id='ApplicationStartMenuShortcut'
-                            Name='Realistic Mouse Jiggler'
-                            Description='Start Realistic Mouse Jiggler'
-                            Target='[APPLICATIONFOLDER]realistic-mouse-jiggler.exe'
-                            WorkingDirectory='APPLICATIONFOLDER'
-                            Icon='ProductICO'/>
-                        <RemoveFolder Id='RemoveApplicationProgramsFolder' On='uninstall'/>
-                        <RegistryValue
-                            Root='HKLM'
-                            Key='Software\VisorCraft LLC\Realistic Mouse Jiggler'
-                            Name='installed'
-                            Type='integer'
-                            Value='1'
-                            KeyPath='yes'/>
-                    </Component>
-                </Directory>
-            </Directory>
         </Directory>
 
         <Feature
@@ -151,7 +130,6 @@
             <ComponentRef Id='License'/>
             
             <ComponentRef Id='MainExecutable'/>
-            <ComponentRef Id='ApplicationShortcut'/>
         </Feature>
 
         <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
