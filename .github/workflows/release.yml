@@ -15,6 +15,7 @@ permissions:
 
 env:
   APP_NAME: realistic-mouse-jiggler
+  GPG_KEY_FINGERPRINT: 55B2BE2BCE1FE5E61D39C2863C7B024310156D2E
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   WINDOWS_TARGET: x86_64-pc-windows-msvc
 
@@ -277,3 +278,62 @@ jobs:
             gh release create "${tag}" --title "${tag}" --notes "Release ${tag}" || gh release view "${tag}" >/dev/null
           fi
           gh release upload "${tag}" dist/arch/* --clobber
+
+  gpg-sign-release-assets:
+    name: GPG sign release assets
+    runs-on: ubuntu-latest
+    needs:
+      - linux-binary
+      - windows-artifacts
+      - arch-package
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Sign release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${GPG_PRIVATE_KEY}" || -z "${GPG_PASSPHRASE}" ]]; then
+            echo "GPG_PRIVATE_KEY and GPG_PASSPHRASE secrets are required." >&2
+            exit 1
+          fi
+
+          export GNUPGHOME="${RUNNER_TEMP}/gnupg"
+          passphrase_file="${RUNNER_TEMP}/gpg-passphrase"
+          mkdir -p "${GNUPGHOME}" dist/signing
+          chmod 700 "${GNUPGHOME}"
+          printf '%s' "${GPG_PASSPHRASE}" > "${passphrase_file}"
+          chmod 600 "${passphrase_file}"
+          printf '%s' "${GPG_PRIVATE_KEY}" | gpg --batch --import
+
+          fingerprint="$(gpg --batch --with-colons --list-secret-keys packages@visorcraft.com | awk -F: '/^fpr:/ {print $10; exit}')"
+          if [[ "${fingerprint}" != "${GPG_KEY_FINGERPRINT}" ]]; then
+            echo "Imported GPG key fingerprint ${fingerprint} does not match expected ${GPG_KEY_FINGERPRINT}." >&2
+            exit 1
+          fi
+
+          gh release download "${RELEASE_TAG}" --dir dist/signing --pattern '*'
+          find dist/signing -type f -name '*.sig' -delete
+          cp packaging/keys/visorcraft-packages.asc dist/signing/
+
+          while IFS= read -r -d '' asset; do
+            gpg \
+              --batch \
+              --yes \
+              --pinentry-mode loopback \
+              --passphrase-file "${passphrase_file}" \
+              --local-user "${GPG_KEY_FINGERPRINT}" \
+              --detach-sign \
+              --output "${asset}.sig" \
+              "${asset}"
+          done < <(find dist/signing -type f ! -name '*.sig' ! -name 'visorcraft-packages.asc' -print0 | sort -z)
+
+          gh release upload "${RELEASE_TAG}" dist/signing/visorcraft-packages.asc dist/signing/*.sig --clobber

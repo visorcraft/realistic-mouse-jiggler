@@ -39,8 +39,8 @@ It is built around four goals:
   or a global keyboard key or mouse button.
 - **Desktop-native behavior.** Closing or minimizing keeps the app
   available from the tray, and KDE/Wayland restore behavior is handled.
-- **Simple distribution.** GitHub releases include a Linux tarball and
-  an Arch/CachyOS pacman package.
+- **Simple distribution.** GitHub releases include a Linux tarball,
+  signed Windows artifacts, and a signed Arch/CachyOS pacman package.
 
 ---
 
@@ -70,11 +70,20 @@ target/release/realistic-mouse-jiggler
 
 ### Arch / CachyOS
 
-Add the GitHub release as a small pacman repository:
+Import the VisorCraft package signing key:
+
+```bash
+curl -fsSLo /tmp/visorcraft-packages.asc \
+  https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/visorcraft-packages.asc
+sudo pacman-key --add /tmp/visorcraft-packages.asc
+sudo pacman-key --lsign-key 55B2BE2BCE1FE5E61D39C2863C7B024310156D2E
+```
+
+Then add the GitHub release as a small pacman repository:
 
 ```ini
 [realistic-mouse-jiggler]
-SigLevel = Optional TrustAll
+SigLevel = Required
 Server = https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download
 ```
 
@@ -84,10 +93,8 @@ Then install:
 sudo pacman -Syu realistic-mouse-jiggler
 ```
 
-The package is currently unsigned, which is why the repo stanza uses
-`Optional TrustAll`. Installing the package directly from its release
-asset URL can fail on systems that try to download a matching `.sig`
-file for remote packages.
+Release assets include detached GPG signatures, including the
+`.pkg.tar.zst.sig` file pacman checks for direct URL installs.
 
 ### Linux Tarball
 
