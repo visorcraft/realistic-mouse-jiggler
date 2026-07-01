@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 VisorCraft LLC -->
+<!-- SPDX-License-Identifier: MIT -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512" viewBox="0 0 1024 512" role="img" aria-label="Realistic Mouse Jiggler social card">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1024" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#141d31"/>
+      <stop offset="0.55" stop-color="#0c1322"/>
+      <stop offset="1" stop-color="#080c15"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="25%" cy="50%" r="58%">
+      <stop offset="0" stop-color="#1d2b46" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#1d2b46" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#25d18b"/>
+      <stop offset="0.42" stop-color="#52cfff"/>
+      <stop offset="0.78" stop-color="#7a63ff"/>
+      <stop offset="1" stop-color="#ffcf5f"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="92" y1="90" x2="414" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f6fbff"/>
+      <stop offset="0.52" stop-color="#cfd6df"/>
+      <stop offset="1" stop-color="#eef4fb"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="22" stdDeviation="19" flood-color="#020617" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="512" fill="url(#bgGrad)"/>
+  <rect width="1024" height="512" fill="url(#bgGlow)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="100" y="100" width="312" height="312" rx="66" fill="url(#tile)" opacity="0.92"/>
+    <path d="M158 356c46-72 100-72 162 0 34 40 64 40 98 0" fill="none" stroke="url(#accent)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+    <image href="rmj.png" x="78" y="74" width="366" height="366" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+
+  <text x="470" y="190" font-family="Cantarell, 'DejaVu Sans', 'Noto Sans', sans-serif" font-weight="800" font-size="92" fill="#f6fbff">Realistic</text>
+  <text x="470" y="274" font-family="Cantarell, 'DejaVu Sans', 'Noto Sans', sans-serif" font-weight="800" font-size="76" fill="#f6fbff">Mouse Jiggler</text>
+  <text x="472" y="326" font-family="Cantarell, 'DejaVu Sans', 'Noto Sans', sans-serif" font-weight="400" font-size="34" fill="#ccd8ea">Natural cursor motion</text>
+  <text x="472" y="368" font-family="Cantarell, 'DejaVu Sans', 'Noto Sans', sans-serif" font-weight="400" font-size="34" fill="#ccd8ea">with tray controls.</text>
+  <rect x="472" y="390" width="168" height="6" rx="3" fill="url(#accent)"/>
+  <text x="470" y="444" font-family="Cantarell, 'DejaVu Sans', 'Noto Sans', sans-serif" font-weight="400" font-size="26" fill="#7e8ca6">Rust core &#183; egui UI &#183; MIT</text>
+</svg>
