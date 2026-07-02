@@ -15,7 +15,7 @@ permissions:
 
 env:
   APP_NAME: realistic-mouse-jiggler
-  GPG_KEY_FINGERPRINT: 55B2BE2BCE1FE5E61D39C2863C7B024310156D2E
+  GPG_KEY_FINGERPRINT: 1FEE29F48CBCAEDCA3A8A005ADDE097CAA99B277
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   WINDOWS_TARGET: x86_64-pc-windows-msvc
 

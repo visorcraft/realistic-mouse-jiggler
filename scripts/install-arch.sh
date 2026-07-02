@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_url="https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download"
-key_fingerprint="55B2BE2BCE1FE5E61D39C2863C7B024310156D2E"
+key_fingerprint="1FEE29F48CBCAEDCA3A8A005ADDE097CAA99B277"
 key_url="${repo_url}/visorcraft-packages.asc"
 package_url="${repo_url}/realistic-mouse-jiggler-x86_64.pkg.tar.zst"
 

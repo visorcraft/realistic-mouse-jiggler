@@ -73,7 +73,7 @@ Import and locally trust the VisorCraft package signing key:
 curl -fsSLo /tmp/visorcraft-packages.asc \
   https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/visorcraft-packages.asc
 sudo pacman-key --add /tmp/visorcraft-packages.asc
-sudo pacman-key --lsign-key 55B2BE2BCE1FE5E61D39C2863C7B024310156D2E
+sudo pacman-key --lsign-key 1FEE29F48CBCAEDCA3A8A005ADDE097CAA99B277
 ```
 
 Users can then install from the latest release with:
