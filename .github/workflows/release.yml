@@ -293,6 +293,7 @@ jobs:
           if ! gh release view "${tag}" >/dev/null 2>&1; then
             gh release create "${tag}" --title "${tag}" --notes "Release ${tag}" || gh release view "${tag}" >/dev/null
           fi
+          cp scripts/install-arch.sh dist/arch/install-arch.sh
           gh release upload "${tag}" dist/arch/* --clobber
 
   gpg-sign-release-assets:

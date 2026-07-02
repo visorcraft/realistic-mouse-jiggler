@@ -96,6 +96,14 @@ Direct latest-release package installs use the stable package alias:
 sudo pacman -U https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler-x86_64.pkg.tar.zst
 ```
 
+That direct install still requires the VisorCraft package key to be
+imported and locally trusted first. For a one-shot install, use the
+release installer script:
+
+```bash
+curl -fsSL https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/install-arch.sh | bash
+```
+
 This is convenient for one package. A dedicated static host or GitHub Pages repo is cleaner if more packages are added.
 
 ## GitHub Pages Hosting
