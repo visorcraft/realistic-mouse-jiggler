@@ -14,6 +14,72 @@ pub enum MovementMode {
     Simple,
 }
 
+impl MovementMode {
+    pub const ALL: [Self; 2] = [Self::Realistic, Self::Simple];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Realistic => "Realistic",
+            Self::Simple => "Simple",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppTheme {
+    #[default]
+    System,
+    Light,
+    Dark,
+    OledBlack,
+    GentleGecko,
+    BlackKnight,
+    Diamond,
+    Dreams,
+    Paranoid,
+    RedVelvet,
+    Subspace,
+    Tiefling,
+    Vibes,
+}
+
+impl AppTheme {
+    pub const ALL: [Self; 13] = [
+        Self::System,
+        Self::Light,
+        Self::Dark,
+        Self::OledBlack,
+        Self::GentleGecko,
+        Self::BlackKnight,
+        Self::Diamond,
+        Self::Dreams,
+        Self::Paranoid,
+        Self::RedVelvet,
+        Self::Subspace,
+        Self::Tiefling,
+        Self::Vibes,
+    ];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::System => "Follow system",
+            Self::Light => "Light",
+            Self::Dark => "Dark",
+            Self::OledBlack => "OLED Black",
+            Self::GentleGecko => "Gentle Gecko",
+            Self::BlackKnight => "Black Knight",
+            Self::Diamond => "Diamond",
+            Self::Dreams => "Dreams",
+            Self::Paranoid => "Paranoid",
+            Self::RedVelvet => "Red Velvet",
+            Self::Subspace => "Subspace",
+            Self::Tiefling => "Tiefling",
+            Self::Vibes => "Vibes",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BindingKind {
@@ -39,6 +105,8 @@ pub struct AppConfig {
     #[serde(default)]
     pub movement_mode: MovementMode,
     #[serde(default)]
+    pub theme: AppTheme,
+    #[serde(default)]
     pub start_binding: Option<Binding>,
     #[serde(default)]
     pub stop_binding: Option<Binding>,
@@ -48,6 +116,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             movement_mode: MovementMode::Realistic,
+            theme: AppTheme::System,
             start_binding: None,
             stop_binding: None,
         }

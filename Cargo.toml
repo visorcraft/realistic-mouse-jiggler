@@ -1,11 +1,12 @@
 [package]
 name = "realistic-mouse-jiggler"
-version = "0.1.7"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.85"
 authors = ["VisorCraft LLC <packages@visorcraft.com>"]
 description = "Cross-platform desktop mouse jiggler with realistic motion, tray controls, and global bindings."
 license = "MIT"
+publish = false
 
 [dependencies]
 anyhow = "1.0.103"

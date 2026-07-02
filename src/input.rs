@@ -22,6 +22,7 @@ pub enum BindTarget {
 /// (its release, a double-click's second press, late hook delivery) cannot
 /// bind itself.
 pub const CAPTURE_GRACE: Duration = Duration::from_millis(500);
+const CAPTURED_BINDING_SUPPRESS: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Clone, Copy)]
 pub struct CaptureRequest {
@@ -29,7 +30,13 @@ pub struct CaptureRequest {
     pub armed_at: Instant,
 }
 
-pub type SharedCaptureTarget = Arc<Mutex<Option<CaptureRequest>>>;
+#[derive(Debug, Default)]
+pub struct CaptureState {
+    pub request: Option<CaptureRequest>,
+    suppress_until: Option<Instant>,
+}
+
+pub type SharedCaptureTarget = Arc<Mutex<CaptureState>>;
 
 pub fn spawn_input_listener(
     tx: Sender<AppEvent>,
@@ -47,20 +54,26 @@ fn handle_binding(
     config: &Arc<RwLock<AppConfig>>,
     capture_target: &SharedCaptureTarget,
 ) {
-    if let Ok(mut slot) = capture_target.lock() {
-        if let Some(request) = *slot {
+    if let Ok(mut state) = capture_target.lock() {
+        if let Some(request) = state.request {
             if request.armed_at.elapsed() < CAPTURE_GRACE {
                 return;
             }
 
-            *slot = None;
-            drop(slot);
+            state.request = None;
 
             if binding.label == "Escape" {
+                drop(state);
                 let _ = tx.send(AppEvent::Status("Binding capture cancelled.".to_string()));
             } else {
+                state.suppress_until = Some(Instant::now() + CAPTURED_BINDING_SUPPRESS);
+                drop(state);
                 let _ = tx.send(AppEvent::BindingCaptured(request.target, binding));
             }
+            return;
+        }
+
+        if input_is_suppressed(&mut state) {
             return;
         }
     }
@@ -76,6 +89,19 @@ fn handle_binding(
         running.store(false, Ordering::SeqCst);
         let _ = tx.send(AppEvent::Status("Stopped.".to_string()));
     }
+}
+
+fn input_is_suppressed(state: &mut CaptureState) -> bool {
+    let Some(until) = state.suppress_until else {
+        return false;
+    };
+
+    if Instant::now() >= until {
+        state.suppress_until = None;
+        return false;
+    }
+
+    true
 }
 
 #[cfg(target_os = "linux")]
@@ -796,10 +822,13 @@ mod tests {
     }
 
     fn armed_capture(armed_at: Instant) -> SharedCaptureTarget {
-        Arc::new(Mutex::new(Some(CaptureRequest {
-            target: BindTarget::Start,
-            armed_at,
-        })))
+        Arc::new(Mutex::new(CaptureState {
+            request: Some(CaptureRequest {
+                target: BindTarget::Start,
+                armed_at,
+            }),
+            suppress_until: None,
+        }))
     }
 
     fn deps() -> (
@@ -831,7 +860,7 @@ mod tests {
         handle_binding(binding("Mouse Left"), &tx, &running, &config, &capture);
 
         assert!(rx.try_recv().is_err());
-        assert!(capture.lock().unwrap().is_some());
+        assert!(capture.lock().unwrap().request.is_some());
     }
 
     #[test]
@@ -845,7 +874,7 @@ mod tests {
             AppEvent::BindingCaptured(BindTarget::Start, bound) => assert_eq!(bound.label, "F6"),
             other => panic!("unexpected event: {other:?}"),
         }
-        assert!(capture.lock().unwrap().is_none());
+        assert!(capture.lock().unwrap().request.is_none());
     }
 
     #[test]
@@ -859,7 +888,27 @@ mod tests {
             AppEvent::Status(_) => {}
             other => panic!("unexpected event: {other:?}"),
         }
-        assert!(capture.lock().unwrap().is_none());
+        assert!(capture.lock().unwrap().request.is_none());
+    }
+
+    #[test]
+    fn captured_binding_does_not_fire_immediately_after_save() {
+        let (tx, rx, running, config) = deps();
+        let capture = armed_capture(expired());
+        let bound = binding("Mouse Middle");
+
+        handle_binding(bound.clone(), &tx, &running, &config, &capture);
+        match rx.try_recv().unwrap() {
+            AppEvent::BindingCaptured(BindTarget::Start, captured) => {
+                config.write().unwrap().start_binding = Some(captured);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+
+        handle_binding(bound, &tx, &running, &config, &capture);
+
+        assert!(!running.load(Ordering::SeqCst));
+        assert!(rx.try_recv().is_err());
     }
 }
 
