@@ -46,6 +46,10 @@ It is built around four goals:
 
 ## Install
 
+### Windows
+
+Download the latest signed [Windows installer](https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.msi) or [standalone `.exe`](https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.exe).
+
 ### Arch / CachyOS
 
 Install directly from the latest signed package:
@@ -73,12 +77,6 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 cargo install --locked --git https://github.com/visorcraft/realistic-mouse-jiggler
 realistic-mouse-jiggler
 ```
-
-### Windows
-
-Download the [latest signed Windows installer](https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.msi).
-
-Or download the [signed standalone `.exe`](https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.exe).
 
 ---
 
