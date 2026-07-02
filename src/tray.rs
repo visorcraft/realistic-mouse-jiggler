@@ -1,6 +1,15 @@
 #[cfg(target_os = "linux")]
 mod platform {
-    use std::{path::PathBuf, sync::mpsc::Sender, thread};
+    use std::{
+        path::PathBuf,
+        process,
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            mpsc::Sender,
+            Arc,
+        },
+        thread,
+    };
 
     use eframe::egui;
     use ksni::{blocking::TrayMethods, menu::StandardItem, Icon, MenuItem, ToolTip, Tray};
@@ -25,7 +34,11 @@ mod platform {
     }
 
     impl TrayState {
-        pub fn new(tx: Sender<AppEvent>, egui_ctx: egui::Context) -> anyhow::Result<Self> {
+        pub fn new(
+            tx: Sender<AppEvent>,
+            egui_ctx: egui::Context,
+            running: Arc<AtomicBool>,
+        ) -> anyhow::Result<Self> {
             let icon_path = install_runtime_icon();
             let icon_name = icon_path
                 .as_ref()
@@ -34,6 +47,7 @@ mod platform {
             let tray = LinuxTray {
                 tx,
                 egui_ctx,
+                running,
                 icon_name,
             };
             let handle = tray
@@ -49,6 +63,7 @@ mod platform {
     struct LinuxTray {
         tx: Sender<AppEvent>,
         egui_ctx: egui::Context,
+        running: Arc<AtomicBool>,
         icon_name: String,
     }
 
@@ -61,6 +76,11 @@ mod platform {
         fn open(&self) {
             thread::spawn(crate::app::restore_plasma_window);
             self.send(AppEvent::ShowWindow);
+        }
+
+        fn set_running(&self, running: bool, status: &str) {
+            self.running.store(running, Ordering::SeqCst);
+            self.send(AppEvent::Status(status.to_string()));
         }
     }
 
@@ -97,10 +117,10 @@ mod platform {
         fn menu(&self) -> Vec<MenuItem<Self>> {
             vec![
                 open_item(),
-                item("Start", AppEvent::StartRequested),
-                item("Stop", AppEvent::StopRequested),
+                running_item("Start", true, "Running."),
+                running_item("Stop", false, "Stopped."),
                 MenuItem::Separator,
-                item("Quit", AppEvent::QuitRequested),
+                quit_item(),
             ]
         }
     }
@@ -114,10 +134,22 @@ mod platform {
         .into()
     }
 
-    fn item(label: &str, event: AppEvent) -> MenuItem<LinuxTray> {
+    fn running_item(label: &str, running: bool, status: &'static str) -> MenuItem<LinuxTray> {
         StandardItem {
             label: label.to_string(),
-            activate: Box::new(move |tray: &mut LinuxTray| tray.send(event.clone())),
+            activate: Box::new(move |tray: &mut LinuxTray| tray.set_running(running, status)),
+            ..Default::default()
+        }
+        .into()
+    }
+
+    fn quit_item() -> MenuItem<LinuxTray> {
+        StandardItem {
+            label: "Quit".to_string(),
+            activate: Box::new(|_tray: &mut LinuxTray| {
+                crate::app::unload_plasma_tray_watcher();
+                process::exit(0);
+            }),
             ..Default::default()
         }
         .into()
@@ -154,7 +186,7 @@ mod platform {
 
 #[cfg(not(target_os = "linux"))]
 mod platform {
-    use std::sync::mpsc::Sender;
+    use std::sync::{atomic::AtomicBool, mpsc::Sender, Arc};
 
     use eframe::egui;
     use tray_icon::{
@@ -174,7 +206,11 @@ mod platform {
     }
 
     impl TrayState {
-        pub fn new(tx: Sender<AppEvent>, egui_ctx: egui::Context) -> anyhow::Result<Self> {
+        pub fn new(
+            tx: Sender<AppEvent>,
+            egui_ctx: egui::Context,
+            _running: Arc<AtomicBool>,
+        ) -> anyhow::Result<Self> {
             install_menu_handler(tx.clone(), egui_ctx.clone());
             install_tray_handler(tx, egui_ctx);
 

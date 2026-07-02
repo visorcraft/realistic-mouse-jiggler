@@ -98,7 +98,7 @@ impl MouseJigglerApp {
             return;
         }
 
-        match TrayState::new(self.tx.clone(), ctx.clone()) {
+        match TrayState::new(self.tx.clone(), ctx.clone(), Arc::clone(&self.running)) {
             Ok(tray) => {
                 self.tray = Some(tray);
             }
@@ -114,9 +114,12 @@ impl MouseJigglerApp {
                 AppEvent::BindingCaptured(target, binding) => {
                     self.set_binding(target, binding);
                 }
+                #[cfg(not(target_os = "linux"))]
                 AppEvent::StartRequested => self.start(),
+                #[cfg(not(target_os = "linux"))]
                 AppEvent::StopRequested => self.stop(),
                 AppEvent::ShowWindow => self.show_window(ctx),
+                #[cfg(not(target_os = "linux"))]
                 AppEvent::QuitRequested => {
                     ctx.send_viewport_cmd(ViewportCommand::Close);
                 }
@@ -348,7 +351,7 @@ impl PlasmaTrayWatcher {
             return None;
         }
 
-        let plugin_name = "realistic-mouse-jiggler-watch".to_string();
+        let plugin_name = KWIN_TRAY_WATCHER_PLUGIN.to_string();
         let script_path = std::env::temp_dir().join(format!("{plugin_name}.js"));
 
         if std::fs::write(&script_path, KWIN_TRAY_WATCHER_SCRIPT).is_err() {
@@ -402,17 +405,30 @@ impl PlasmaTrayWatcher {
 #[cfg(target_os = "linux")]
 impl Drop for PlasmaTrayWatcher {
     fn drop(&mut self) {
-        let _ = Command::new("qdbus6")
-            .args([
-                "org.kde.KWin",
-                "/Scripting",
-                "org.kde.kwin.Scripting.unloadScript",
-            ])
-            .arg(&self.plugin_name)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        unload_plasma_tray_watcher_named(&self.plugin_name);
     }
+}
+
+#[cfg(target_os = "linux")]
+const KWIN_TRAY_WATCHER_PLUGIN: &str = "realistic-mouse-jiggler-watch";
+
+#[cfg(target_os = "linux")]
+pub(crate) fn unload_plasma_tray_watcher() {
+    unload_plasma_tray_watcher_named(KWIN_TRAY_WATCHER_PLUGIN);
+}
+
+#[cfg(target_os = "linux")]
+fn unload_plasma_tray_watcher_named(plugin_name: &str) {
+    let _ = Command::new("qdbus6")
+        .args([
+            "org.kde.KWin",
+            "/Scripting",
+            "org.kde.kwin.Scripting.unloadScript",
+        ])
+        .arg(plugin_name)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
 }
 
 #[cfg(target_os = "linux")]

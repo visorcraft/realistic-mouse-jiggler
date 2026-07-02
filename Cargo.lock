@@ -2747,7 +2747,7 @@ dependencies = [
 
 [[package]]
 name = "realistic-mouse-jiggler"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anyhow",
  "core-foundation 0.10.1",
