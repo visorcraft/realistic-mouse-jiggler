@@ -40,4 +40,12 @@ fi
 
 sudo pacman-key --add "${key_file}"
 sudo pacman-key --lsign-key "${key_fingerprint}"
-sudo pacman -U --needed --noconfirm "${package_url}"
+
+# Download to the temp dir instead of passing the URL to pacman: the release
+# package filename is unversioned, so pacman's URL cache would keep serving
+# whatever version it downloaded first.
+package_file="${workdir}/realistic-mouse-jiggler-x86_64.pkg.tar.zst"
+curl -fsSLo "${package_file}" "${package_url}"
+curl -fsSLo "${package_file}.sig" "${package_url}.sig"
+
+sudo pacman -U --needed --noconfirm "${package_file}"
