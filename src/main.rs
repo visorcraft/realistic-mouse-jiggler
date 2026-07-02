@@ -35,8 +35,8 @@ fn main() -> eframe::Result<()> {
     let viewport = egui::ViewportBuilder::default()
         .with_app_id("com.visorcraft.realistic-mouse-jiggler")
         .with_title("Realistic Mouse Jiggler")
-        .with_inner_size([440.0, 310.0])
-        .with_min_inner_size([420.0, 300.0])
+        .with_inner_size([472.0, 344.0])
+        .with_min_inner_size([472.0, 344.0])
         .with_resizable(false)
         .with_icon(icons::window_icon());
 

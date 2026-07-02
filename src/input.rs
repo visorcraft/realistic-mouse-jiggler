@@ -1,7 +1,10 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    mpsc::Sender,
-    Arc, Mutex, RwLock,
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::Sender,
+        Arc, Mutex, RwLock,
+    },
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -15,7 +18,18 @@ pub enum BindTarget {
     Stop,
 }
 
-pub type SharedCaptureTarget = Arc<Mutex<Option<BindTarget>>>;
+/// Ignore input this long after arming capture so the click that armed it
+/// (its release, a double-click's second press, late hook delivery) cannot
+/// bind itself.
+pub const CAPTURE_GRACE: Duration = Duration::from_millis(500);
+
+#[derive(Debug, Clone, Copy)]
+pub struct CaptureRequest {
+    pub target: BindTarget,
+    pub armed_at: Instant,
+}
+
+pub type SharedCaptureTarget = Arc<Mutex<Option<CaptureRequest>>>;
 
 pub fn spawn_input_listener(
     tx: Sender<AppEvent>,
@@ -33,13 +47,22 @@ fn handle_binding(
     config: &Arc<RwLock<AppConfig>>,
     capture_target: &SharedCaptureTarget,
 ) {
-    if let Some(target) = capture_target
-        .lock()
-        .ok()
-        .and_then(|mut target| target.take())
-    {
-        let _ = tx.send(AppEvent::BindingCaptured(target, binding));
-        return;
+    if let Ok(mut slot) = capture_target.lock() {
+        if let Some(request) = *slot {
+            if request.armed_at.elapsed() < CAPTURE_GRACE {
+                return;
+            }
+
+            *slot = None;
+            drop(slot);
+
+            if binding.label == "Escape" {
+                let _ = tx.send(AppEvent::Status("Binding capture cancelled.".to_string()));
+            } else {
+                let _ = tx.send(AppEvent::BindingCaptured(request.target, binding));
+            }
+            return;
+        }
     }
 
     let Ok(config) = config.read() else {
@@ -755,6 +778,88 @@ mod platform {
             _ => return format!("Key {code}"),
         }
         .to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{atomic::AtomicBool, mpsc, Arc, Mutex, RwLock};
+
+    use super::*;
+
+    fn binding(label: &str) -> Binding {
+        Binding {
+            kind: BindingKind::Key,
+            code: format!("test:{label}"),
+            label: label.to_string(),
+        }
+    }
+
+    fn armed_capture(armed_at: Instant) -> SharedCaptureTarget {
+        Arc::new(Mutex::new(Some(CaptureRequest {
+            target: BindTarget::Start,
+            armed_at,
+        })))
+    }
+
+    fn deps() -> (
+        Sender<AppEvent>,
+        mpsc::Receiver<AppEvent>,
+        Arc<AtomicBool>,
+        Arc<RwLock<AppConfig>>,
+    ) {
+        let (tx, rx) = mpsc::channel();
+        (
+            tx,
+            rx,
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(RwLock::new(AppConfig::default())),
+        )
+    }
+
+    fn expired() -> Instant {
+        Instant::now()
+            .checked_sub(CAPTURE_GRACE + Duration::from_millis(1))
+            .expect("clock predates grace window")
+    }
+
+    #[test]
+    fn capture_ignores_events_during_grace_period() {
+        let (tx, rx, running, config) = deps();
+        let capture = armed_capture(Instant::now());
+
+        handle_binding(binding("Mouse Left"), &tx, &running, &config, &capture);
+
+        assert!(rx.try_recv().is_err());
+        assert!(capture.lock().unwrap().is_some());
+    }
+
+    #[test]
+    fn capture_binds_after_grace_period() {
+        let (tx, rx, running, config) = deps();
+        let capture = armed_capture(expired());
+
+        handle_binding(binding("F6"), &tx, &running, &config, &capture);
+
+        match rx.try_recv().unwrap() {
+            AppEvent::BindingCaptured(BindTarget::Start, bound) => assert_eq!(bound.label, "F6"),
+            other => panic!("unexpected event: {other:?}"),
+        }
+        assert!(capture.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn escape_cancels_capture() {
+        let (tx, rx, running, config) = deps();
+        let capture = armed_capture(expired());
+
+        handle_binding(binding("Escape"), &tx, &running, &config, &capture);
+
+        match rx.try_recv().unwrap() {
+            AppEvent::Status(_) => {}
+            other => panic!("unexpected event: {other:?}"),
+        }
+        assert!(capture.lock().unwrap().is_none());
     }
 }
 

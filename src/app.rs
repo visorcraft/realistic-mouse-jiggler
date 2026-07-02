@@ -18,7 +18,7 @@ use std::process::{Command, Stdio};
 use crate::{
     config::{self, AppConfig, Binding, MovementMode},
     events::AppEvent,
-    input::{BindTarget, SharedCaptureTarget},
+    input::{BindTarget, CaptureRequest, SharedCaptureTarget},
     tray::TrayState,
 };
 
@@ -191,17 +191,23 @@ impl MouseJigglerApp {
 
     fn begin_capture(&mut self, target: BindTarget) {
         if let Ok(mut capture_target) = self.capture_target.lock() {
-            *capture_target = Some(target);
+            *capture_target = Some(CaptureRequest {
+                target,
+                armed_at: std::time::Instant::now(),
+            });
         }
         self.status = match target {
-            BindTarget::Start => "Press a key or mouse button for start.".to_string(),
-            BindTarget::Stop => "Press a key or mouse button for stop.".to_string(),
+            BindTarget::Start => "Press a key or mouse button for start (Esc cancels).".to_string(),
+            BindTarget::Stop => "Press a key or mouse button for stop (Esc cancels).".to_string(),
         };
         self.last_error = None;
     }
 
     fn capture_target(&self) -> Option<BindTarget> {
-        self.capture_target.lock().ok().and_then(|target| *target)
+        self.capture_target
+            .lock()
+            .ok()
+            .and_then(|slot| slot.map(|request| request.target))
     }
 
     fn config_snapshot(&self) -> AppConfig {
@@ -236,7 +242,11 @@ impl eframe::App for MouseJigglerApp {
 
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         CentralPanel::default()
-            .frame(egui::Frame::default().fill(PANEL_BG))
+            .frame(
+                egui::Frame::default()
+                    .fill(PANEL_BG)
+                    .inner_margin(egui::Margin::same(16)),
+            )
             .show(ui, |ui| self.render_ui(ui));
     }
 }
