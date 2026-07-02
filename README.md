@@ -44,28 +44,6 @@ It is built around four goals:
 
 ---
 
-## Try it
-
-Run from source:
-
-```bash
-cargo run
-```
-
-Release build:
-
-```bash
-cargo build --release
-```
-
-The binary is written to:
-
-```text
-target/release/realistic-mouse-jiggler
-```
-
----
-
 ## Install
 
 ### Arch / CachyOS
@@ -76,41 +54,6 @@ Install directly from the latest signed package:
 curl -fsSL https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/install-arch.sh | bash
 ```
 
-Or set up the signed pacman repository manually. First import and locally
-trust the VisorCraft package signing key:
-
-```bash
-curl -fsSLo /tmp/visorcraft-packages.asc \
-  https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/visorcraft-packages.asc
-sudo pacman-key --add /tmp/visorcraft-packages.asc
-sudo pacman-key --lsign-key 55B2BE2BCE1FE5E61D39C2863C7B024310156D2E
-```
-
-Add the release repository to `/etc/pacman.conf`:
-
-```ini
-[realistic-mouse-jiggler]
-SigLevel = Required
-Server = https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download
-```
-
-Then sync and install with pacman:
-
-```bash
-sudo pacman -Syu realistic-mouse-jiggler
-```
-
-Direct `pacman -U` installs from the latest release URL work after the
-key has been imported and locally trusted:
-
-```bash
-sudo pacman -U https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler-x86_64.pkg.tar.zst
-```
-
-Pacman must trust the VisorCraft key before it can install the package.
-Each `.pkg.tar.zst` asset is published with the matching `.pkg.tar.zst.sig`
-file that pacman expects.
-
 ### Linux Tarball
 
 Download the latest Linux tarball:
@@ -119,19 +62,23 @@ Download the latest Linux tarball:
 curl -LO https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler-linux-x86_64.tar.gz
 ```
 
+### macOS
+
+Install from source with Cargo:
+
+```bash
+xcode-select --install
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"
+cargo install --locked --git https://github.com/visorcraft/realistic-mouse-jiggler
+realistic-mouse-jiggler
+```
+
 ### Windows
 
-Download the latest signed Windows installer:
+Download the [latest signed Windows installer](https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.msi).
 
-```text
-https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.msi
-```
-
-Or the signed standalone `.exe`:
-
-```text
-https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.exe
-```
+Or download the [signed standalone `.exe`](https://github.com/visorcraft/realistic-mouse-jiggler/releases/latest/download/realistic-mouse-jiggler.exe).
 
 ---
 
@@ -161,9 +108,10 @@ capture and cursor movement:
 
 ```text
 System Settings -> Privacy & Security -> Accessibility
+System Settings -> Privacy & Security -> Input Monitoring
 ```
 
-Add the app, or add Terminal while running through `cargo run`.
+Add Terminal or iTerm if launching from the Cargo-installed command.
 
 ### Windows
 
