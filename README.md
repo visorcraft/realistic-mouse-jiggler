@@ -35,8 +35,8 @@ It is built around four goals:
 
 - **Realistic motion.** Smooth movement is available alongside a simple
   horizontal mode.
-- **Fast control.** Start or stop from the app window, the system tray,
-  or a global keyboard key or mouse button.
+- **Fast control.** Start or stop from the app window, system tray,
+  keyboard keys, shortcuts such as `Ctrl+Alt+F7`, or mouse buttons.
 - **Desktop-native behavior.** Closing or minimizing keeps the app
   available from the tray, and KDE/Wayland restore behavior is handled.
 - **Simple distribution.** GitHub releases include a Linux tarball,
@@ -115,7 +115,8 @@ Add Terminal or iTerm if launching from the Cargo-installed command.
 
 Windows should work without extra system packages. Some security tools
 may flag global input hooks; allow the app if you want keyboard/mouse
-bindings to work system-wide.
+bindings to work system-wide. Left click cannot be assigned, so app controls
+remain usable.
 
 ---
 
@@ -161,12 +162,16 @@ hosting and CachyOS submission notes.
 
 ```bash
 cargo fmt --check
-cargo test
-cargo build --release
+cargo test --locked
+cargo build --release --locked
 ```
+
+Rust 1.92 or newer is required.
 
 When editing `.github/workflows/release.yml`, also run:
 
 ```bash
-actionlint .github/workflows/release.yml
+actionlint .github/workflows/release.yml .github/workflows/test-azure-signing.yml
 ```
+
+See [Credits](CREDITS.md) and the generated [Third-Party Licenses](docs/credits-third-party.md).

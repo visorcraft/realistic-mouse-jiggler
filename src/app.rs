@@ -514,14 +514,15 @@ impl MouseJigglerApp {
 
     fn begin_capture(&mut self, target: BindTarget) {
         if let Ok(mut capture_target) = self.capture_target.lock() {
-            capture_target.request = Some(CaptureRequest {
-                target,
-                armed_at: std::time::Instant::now(),
-            });
+            capture_target.request = Some(CaptureRequest { target });
         }
         self.status = match target {
-            BindTarget::Start => "Press a key or mouse button for start (Esc cancels).".to_string(),
-            BindTarget::Stop => "Press a key or mouse button for stop (Esc cancels).".to_string(),
+            BindTarget::Start => {
+                "Press a key, shortcut, or mouse button for start (Esc cancels).".to_string()
+            }
+            BindTarget::Stop => {
+                "Press a key, shortcut, or mouse button for stop (Esc cancels).".to_string()
+            }
         };
         self.last_error = None;
     }
@@ -1271,7 +1272,7 @@ impl MouseJigglerApp {
                     } else {
                         count_matching_lines(body, &self.license_filter)
                     };
-                    ui.label(muted(&format!("{count} lines"), palette, 12.0));
+                    ui.label(muted(format!("{count} lines"), palette, 12.0));
                 });
             });
 
@@ -1346,7 +1347,7 @@ impl MouseJigglerApp {
                 let filtered = filtered_credits_count(&self.credits_filter);
                 ui.add_sized(
                     [count_width, 24.0],
-                    Label::new(muted(&format!("{filtered} / {crate_count}"), palette, 12.0)),
+                    Label::new(muted(format!("{filtered} / {crate_count}"), palette, 12.0)),
                 );
             });
 
@@ -1410,7 +1411,7 @@ impl MouseJigglerApp {
             .stroke(Stroke::new(1.0, palette.separator_strong))
             .min_size(ACTION_BUTTON_SIZE),
         );
-        if stop.clicked() {
+        if stop.clicked() || stop.is_pointer_button_down_on() {
             self.stop();
         }
     }
@@ -1425,11 +1426,11 @@ impl MouseJigglerApp {
     ) {
         let is_capturing = capture_target == Some(target);
         let text = if is_capturing {
-            "PRESS ANY KEY OR MOUSE BUTTON".to_string()
+            "PRESS A KEY, SHORTCUT, OR MOUSE BUTTON".to_string()
         } else {
             binding
                 .map(|binding| binding.display_label().to_string())
-                .unwrap_or_else(|| "PRESS ANY KEY OR MOUSE BUTTON".to_string())
+                .unwrap_or_else(|| "PRESS A KEY, SHORTCUT, OR MOUSE BUTTON".to_string())
         };
 
         let button = Button::new(RichText::new(text).color(Color32::WHITE))

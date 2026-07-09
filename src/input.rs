@@ -18,16 +18,11 @@ pub enum BindTarget {
     Stop,
 }
 
-/// Ignore input this long after arming capture so the click that armed it
-/// (its release, a double-click's second press, late hook delivery) cannot
-/// bind itself.
-pub const CAPTURE_GRACE: Duration = Duration::from_millis(500);
 const CAPTURED_BINDING_SUPPRESS: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Clone, Copy)]
 pub struct CaptureRequest {
     pub target: BindTarget,
-    pub armed_at: Instant,
 }
 
 #[derive(Debug, Default)]
@@ -55,11 +50,18 @@ fn handle_binding(
     capture_target: &SharedCaptureTarget,
 ) {
     if let Ok(mut state) = capture_target.lock() {
-        if let Some(request) = state.request {
-            if request.armed_at.elapsed() < CAPTURE_GRACE {
-                return;
+        if binding.is_left_click() {
+            let is_capturing = state.request.is_some();
+            drop(state);
+            if is_capturing {
+                let _ = tx.send(AppEvent::Status(
+                    "Left click cannot be used as a binding.".to_string(),
+                ));
             }
+            return;
+        }
 
+        if let Some(request) = state.request {
             state.request = None;
 
             if binding.label == "Escape" {
@@ -91,6 +93,50 @@ fn handle_binding(
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct Modifiers {
+    ctrl: bool,
+    alt: bool,
+    shift: bool,
+    meta: bool,
+}
+
+fn chord_binding(
+    kind: BindingKind,
+    code_prefix: &str,
+    code: u32,
+    label: String,
+    modifiers: Modifiers,
+) -> Binding {
+    let mut codes = Vec::with_capacity(4);
+    let mut labels = Vec::with_capacity(5);
+
+    for (pressed, code, label) in [
+        (modifiers.ctrl, "ctrl", "Ctrl"),
+        (modifiers.alt, "alt", "Alt"),
+        (modifiers.shift, "shift", "Shift"),
+        (modifiers.meta, "meta", "Meta"),
+    ] {
+        if pressed {
+            codes.push(code);
+            labels.push(label.to_string());
+        }
+    }
+
+    labels.push(label);
+    let code = if codes.is_empty() {
+        format!("{code_prefix}:{code}")
+    } else {
+        format!("{code_prefix}:{}+{code}", codes.join("+"))
+    };
+
+    Binding {
+        kind,
+        code,
+        label: labels.join("+"),
+    }
+}
+
 fn input_is_suppressed(state: &mut CaptureState) -> bool {
     let Some(until) = state.suppress_until else {
         return false;
@@ -115,9 +161,13 @@ mod platform {
         thread,
     };
 
-    use super::{handle_binding, AppConfig, AppEvent, Binding, BindingKind, SharedCaptureTarget};
+    use super::{
+        chord_binding, handle_binding, AppConfig, AppEvent, Binding, BindingKind, Modifiers,
+        SharedCaptureTarget,
+    };
 
     const EV_KEY: u16 = 0x01;
+    const KEY_RELEASE: i32 = 0;
     const KEY_PRESS: i32 = 1;
 
     #[cfg(target_pointer_width = "64")]
@@ -256,6 +306,7 @@ mod platform {
         capture_target: SharedCaptureTarget,
     ) {
         let mut buffer = [0u8; INPUT_EVENT_SIZE];
+        let mut pressed_modifiers = PressedModifiers::default();
 
         loop {
             if let Err(error) = file.read_exact(&mut buffer) {
@@ -278,28 +329,75 @@ mod platform {
                 buffer[EVENT_TYPE_OFFSET + 7],
             ]);
 
-            if event_type == EV_KEY && value == KEY_PRESS {
-                if let Some(binding) = linux_binding(code) {
+            if event_type != EV_KEY {
+                continue;
+            }
+
+            if pressed_modifiers.update(code, value != KEY_RELEASE) {
+                continue;
+            }
+
+            if value == KEY_PRESS {
+                if let Some(binding) = linux_binding(code, pressed_modifiers.current()) {
                     handle_binding(binding, &tx, &running, &config, &capture_target);
                 }
             }
         }
     }
 
-    fn linux_binding(code: u16) -> Option<Binding> {
-        if let Some(label) = mouse_button_label(code) {
-            return Some(Binding {
-                kind: BindingKind::MouseButton,
-                code: format!("linux-mouse:{code}"),
-                label,
-            });
+    #[derive(Default)]
+    struct PressedModifiers(u8);
+
+    impl PressedModifiers {
+        fn update(&mut self, code: u16, pressed: bool) -> bool {
+            let bit = match code {
+                29 => 1,
+                97 => 2,
+                56 => 4,
+                100 => 8,
+                42 => 16,
+                54 => 32,
+                125 => 64,
+                126 => 128,
+                _ => return false,
+            };
+
+            if pressed {
+                self.0 |= bit;
+            } else {
+                self.0 &= !bit;
+            }
+            true
         }
 
-        Some(Binding {
-            kind: BindingKind::Key,
-            code: format!("linux-key:{code}"),
-            label: key_label(code)?,
-        })
+        fn current(&self) -> Modifiers {
+            Modifiers {
+                ctrl: self.0 & 3 != 0,
+                alt: self.0 & 12 != 0,
+                shift: self.0 & 48 != 0,
+                meta: self.0 & 192 != 0,
+            }
+        }
+    }
+
+    fn linux_binding(code: u16, modifiers: Modifiers) -> Option<Binding> {
+        if let Some(label) = mouse_button_label(code) {
+            return Some(chord_binding(
+                BindingKind::MouseButton,
+                "linux-mouse",
+                code.into(),
+                label,
+                modifiers,
+            ));
+        }
+
+        Some(chord_binding(
+            BindingKind::Key,
+            "linux-key",
+            code.into(),
+            key_label(code)?,
+            modifiers,
+        ))
     }
 
     fn mouse_button_label(code: u16) -> Option<String> {
@@ -420,12 +518,15 @@ mod platform {
         Foundation::{LPARAM, LRESULT, WPARAM},
         UI::WindowsAndMessaging::{
             CallNextHookEx, GetMessageW, SetWindowsHookExW, UnhookWindowsHookEx, KBDLLHOOKSTRUCT,
-            MSG, MSLLHOOKSTRUCT, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_LBUTTONDOWN,
-            WM_MBUTTONDOWN, WM_RBUTTONDOWN, WM_SYSKEYDOWN, WM_XBUTTONDOWN,
+            MSG, MSLLHOOKSTRUCT, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN,
+            WM_MBUTTONDOWN, WM_RBUTTONDOWN, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_XBUTTONDOWN,
         },
     };
 
-    use super::{handle_binding, AppConfig, AppEvent, Binding, BindingKind, SharedCaptureTarget};
+    use super::{
+        chord_binding, handle_binding, AppConfig, AppEvent, Binding, BindingKind, Modifiers,
+        SharedCaptureTarget,
+    };
 
     static HOOK_STATE: OnceLock<Mutex<HookState>> = OnceLock::new();
 
@@ -434,6 +535,7 @@ mod platform {
         running: Arc<AtomicBool>,
         config: Arc<RwLock<AppConfig>>,
         capture_target: SharedCaptureTarget,
+        pressed_modifiers: PressedModifiers,
     }
 
     pub fn spawn_input_listener(
@@ -450,6 +552,7 @@ mod platform {
                     running,
                     config,
                     capture_target,
+                    pressed_modifiers: PressedModifiers::default(),
                 }))
                 .is_err()
             {
@@ -497,9 +600,12 @@ mod platform {
     unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
         if code >= 0 {
             let message = wparam.0 as u32;
-            if message == WM_KEYDOWN || message == WM_SYSKEYDOWN {
+            if matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN | WM_KEYUP | WM_SYSKEYUP) {
                 let event = unsafe { *(lparam.0 as *const KBDLLHOOKSTRUCT) };
-                dispatch_binding(key_binding(event.vkCode));
+                dispatch_key(
+                    event.vkCode,
+                    message == WM_KEYDOWN || message == WM_SYSKEYDOWN,
+                );
             }
         }
 
@@ -525,18 +631,58 @@ mod platform {
             };
 
             if let Some(button) = button {
-                dispatch_binding(mouse_binding(button));
+                dispatch_mouse(button);
             }
         }
 
         unsafe { CallNextHookEx(None, code, wparam, lparam) }
     }
 
-    fn dispatch_binding(binding: Binding) {
-        let Some(state) = HOOK_STATE.get().and_then(|state| state.lock().ok()) else {
+    #[derive(Default)]
+    struct PressedModifiers(u8);
+
+    impl PressedModifiers {
+        fn update(&mut self, vk_code: u32, pressed: bool) -> bool {
+            let bit = match vk_code {
+                0x11 | 0xA2 => 1,
+                0xA3 => 2,
+                0x12 | 0xA4 => 4,
+                0xA5 => 8,
+                0x10 | 0xA0 => 16,
+                0xA1 => 32,
+                0x5B => 64,
+                0x5C => 128,
+                _ => return false,
+            };
+
+            if pressed {
+                self.0 |= bit;
+            } else {
+                self.0 &= !bit;
+            }
+            true
+        }
+
+        fn current(&self) -> Modifiers {
+            Modifiers {
+                ctrl: self.0 & 3 != 0,
+                alt: self.0 & 12 != 0,
+                shift: self.0 & 48 != 0,
+                meta: self.0 & 192 != 0,
+            }
+        }
+    }
+
+    fn dispatch_key(vk_code: u32, pressed: bool) {
+        let Some(mut state) = HOOK_STATE.get().and_then(|state| state.lock().ok()) else {
             return;
         };
 
+        if state.pressed_modifiers.update(vk_code, pressed) || !pressed {
+            return;
+        }
+
+        let binding = key_binding(vk_code, state.pressed_modifiers.current());
         handle_binding(
             binding,
             &state.tx,
@@ -546,20 +692,38 @@ mod platform {
         );
     }
 
-    fn key_binding(vk_code: u32) -> Binding {
-        Binding {
-            kind: BindingKind::Key,
-            code: format!("windows-key:{vk_code}"),
-            label: windows_key_label(vk_code),
-        }
+    fn dispatch_mouse(button: u32) {
+        let Some(state) = HOOK_STATE.get().and_then(|state| state.lock().ok()) else {
+            return;
+        };
+
+        handle_binding(
+            mouse_binding(button, state.pressed_modifiers.current()),
+            &state.tx,
+            &state.running,
+            &state.config,
+            &state.capture_target,
+        );
     }
 
-    fn mouse_binding(button: u32) -> Binding {
-        Binding {
-            kind: BindingKind::MouseButton,
-            code: format!("windows-mouse:{button}"),
-            label: mouse_label(button),
-        }
+    fn key_binding(vk_code: u32, modifiers: Modifiers) -> Binding {
+        chord_binding(
+            BindingKind::Key,
+            "windows-key",
+            vk_code,
+            windows_key_label(vk_code),
+            modifiers,
+        )
+    }
+
+    fn mouse_binding(button: u32, modifiers: Modifiers) -> Binding {
+        chord_binding(
+            BindingKind::MouseButton,
+            "windows-mouse",
+            button,
+            mouse_label(button),
+            modifiers,
+        )
     }
 
     fn mouse_label(button: u32) -> String {
@@ -618,7 +782,10 @@ mod platform {
         CGEventTapPlacement, CGEventType, CallbackResult, EventField, KeyCode,
     };
 
-    use super::{handle_binding, AppConfig, AppEvent, Binding, BindingKind, SharedCaptureTarget};
+    use super::{
+        chord_binding, handle_binding, AppConfig, AppEvent, Binding, BindingKind, Modifiers,
+        SharedCaptureTarget,
+    };
 
     pub fn spawn_input_listener(
         tx: Sender<AppEvent>,
@@ -665,56 +832,48 @@ mod platform {
         match event_type {
             CGEventType::KeyDown => {
                 let code = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
-                Some(key_binding(code as u16))
+                Some(key_binding(code as u16, modifiers(event.get_flags())))
             }
-            CGEventType::FlagsChanged => {
-                let code = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE) as u16;
-                if modifier_is_pressed(code, event.get_flags()) {
-                    Some(key_binding(code))
-                } else {
-                    None
-                }
-            }
-            CGEventType::LeftMouseDown => Some(mouse_binding(0)),
-            CGEventType::RightMouseDown => Some(mouse_binding(1)),
+            CGEventType::FlagsChanged => None,
+            CGEventType::LeftMouseDown => Some(mouse_binding(0, modifiers(event.get_flags()))),
+            CGEventType::RightMouseDown => Some(mouse_binding(1, modifiers(event.get_flags()))),
             CGEventType::OtherMouseDown => {
                 let button = event.get_integer_value_field(EventField::MOUSE_EVENT_BUTTON_NUMBER);
-                Some(mouse_binding(u32::try_from(button).unwrap_or(0)))
+                Some(mouse_binding(
+                    u32::try_from(button).unwrap_or(0),
+                    modifiers(event.get_flags()),
+                ))
             }
             _ => None,
         }
     }
 
-    fn key_binding(code: u16) -> Binding {
-        Binding {
-            kind: BindingKind::Key,
-            code: format!("mac-key:{code}"),
-            label: mac_key_label(code),
-        }
+    fn key_binding(code: u16, modifiers: Modifiers) -> Binding {
+        chord_binding(
+            BindingKind::Key,
+            "mac-key",
+            code.into(),
+            mac_key_label(code),
+            modifiers,
+        )
     }
 
-    fn mouse_binding(button: u32) -> Binding {
-        Binding {
-            kind: BindingKind::MouseButton,
-            code: format!("mac-mouse:{button}"),
-            label: mouse_label(button),
-        }
+    fn mouse_binding(button: u32, modifiers: Modifiers) -> Binding {
+        chord_binding(
+            BindingKind::MouseButton,
+            "mac-mouse",
+            button,
+            mouse_label(button),
+            modifiers,
+        )
     }
 
-    fn modifier_is_pressed(code: u16, flags: CGEventFlags) -> bool {
-        match code {
-            KeyCode::SHIFT | KeyCode::RIGHT_SHIFT => flags.contains(CGEventFlags::CGEventFlagShift),
-            KeyCode::CONTROL | KeyCode::RIGHT_CONTROL => {
-                flags.contains(CGEventFlags::CGEventFlagControl)
-            }
-            KeyCode::OPTION | KeyCode::RIGHT_OPTION => {
-                flags.contains(CGEventFlags::CGEventFlagAlternate)
-            }
-            KeyCode::COMMAND | KeyCode::RIGHT_COMMAND => {
-                flags.contains(CGEventFlags::CGEventFlagCommand)
-            }
-            KeyCode::CAPS_LOCK => flags.contains(CGEventFlags::CGEventFlagAlphaShift),
-            _ => false,
+    fn modifiers(flags: CGEventFlags) -> Modifiers {
+        Modifiers {
+            ctrl: flags.contains(CGEventFlags::CGEventFlagControl),
+            alt: flags.contains(CGEventFlags::CGEventFlagAlternate),
+            shift: flags.contains(CGEventFlags::CGEventFlagShift),
+            meta: flags.contains(CGEventFlags::CGEventFlagCommand),
         }
     }
 
@@ -821,11 +980,18 @@ mod tests {
         }
     }
 
-    fn armed_capture(armed_at: Instant) -> SharedCaptureTarget {
+    fn mouse_binding(label: &str) -> Binding {
+        Binding {
+            kind: BindingKind::MouseButton,
+            code: format!("test-mouse:{label}"),
+            label: label.to_string(),
+        }
+    }
+
+    fn armed_capture() -> SharedCaptureTarget {
         Arc::new(Mutex::new(CaptureState {
             request: Some(CaptureRequest {
                 target: BindTarget::Start,
-                armed_at,
             }),
             suppress_until: None,
         }))
@@ -846,27 +1012,27 @@ mod tests {
         )
     }
 
-    fn expired() -> Instant {
-        Instant::now()
-            .checked_sub(CAPTURE_GRACE + Duration::from_millis(1))
-            .expect("clock predates grace window")
-    }
-
     #[test]
-    fn capture_ignores_events_during_grace_period() {
+    fn capture_rejects_left_click() {
         let (tx, rx, running, config) = deps();
-        let capture = armed_capture(Instant::now());
+        let capture = armed_capture();
 
-        handle_binding(binding("Mouse Left"), &tx, &running, &config, &capture);
+        handle_binding(
+            mouse_binding("Mouse Left"),
+            &tx,
+            &running,
+            &config,
+            &capture,
+        );
 
-        assert!(rx.try_recv().is_err());
+        assert!(matches!(rx.try_recv(), Ok(AppEvent::Status(_))));
         assert!(capture.lock().unwrap().request.is_some());
     }
 
     #[test]
-    fn capture_binds_after_grace_period() {
+    fn capture_binds_immediate_regular_key() {
         let (tx, rx, running, config) = deps();
-        let capture = armed_capture(expired());
+        let capture = armed_capture();
 
         handle_binding(binding("F6"), &tx, &running, &config, &capture);
 
@@ -880,7 +1046,7 @@ mod tests {
     #[test]
     fn escape_cancels_capture() {
         let (tx, rx, running, config) = deps();
-        let capture = armed_capture(expired());
+        let capture = armed_capture();
 
         handle_binding(binding("Escape"), &tx, &running, &config, &capture);
 
@@ -894,7 +1060,7 @@ mod tests {
     #[test]
     fn captured_binding_does_not_fire_immediately_after_save() {
         let (tx, rx, running, config) = deps();
-        let capture = armed_capture(expired());
+        let capture = armed_capture();
         let bound = binding("Mouse Middle");
 
         handle_binding(bound.clone(), &tx, &running, &config, &capture);
@@ -909,6 +1075,50 @@ mod tests {
 
         assert!(!running.load(Ordering::SeqCst));
         assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn left_click_cannot_activate_existing_binding() {
+        let (tx, rx, running, config) = deps();
+        let capture = Arc::new(Mutex::new(CaptureState::default()));
+        config.write().unwrap().start_binding = Some(mouse_binding("Mouse Left"));
+
+        handle_binding(
+            mouse_binding("Mouse Left"),
+            &tx,
+            &running,
+            &config,
+            &capture,
+        );
+
+        assert!(!running.load(Ordering::SeqCst));
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn modifier_chord_matches_as_one_binding() {
+        let (tx, rx, running, config) = deps();
+        let capture = Arc::new(Mutex::new(CaptureState::default()));
+        let chord = chord_binding(
+            BindingKind::Key,
+            "windows-key",
+            0x76,
+            "F7".to_string(),
+            Modifiers {
+                ctrl: true,
+                alt: true,
+                ..Default::default()
+            },
+        );
+        assert_eq!(chord.code, "windows-key:ctrl+alt+118");
+        assert_eq!(chord.label, "Ctrl+Alt+F7");
+        config.write().unwrap().stop_binding = Some(chord.clone());
+        running.store(true, Ordering::SeqCst);
+
+        handle_binding(chord, &tx, &running, &config, &capture);
+
+        assert!(!running.load(Ordering::SeqCst));
+        assert!(matches!(rx.try_recv(), Ok(AppEvent::Status(_))));
     }
 }
 

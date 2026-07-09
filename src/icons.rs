@@ -14,10 +14,14 @@ const SYSTEM_DESKTOP_PATH: &str =
 const SYSTEM_ICON_PATH: &str =
     "/usr/share/icons/hicolor/256x256/apps/com.visorcraft.realistic-mouse-jiggler.png";
 
+#[cfg(target_os = "linux")]
 pub const RMJ_16_PNG: &[u8] = include_bytes!("../assets/icons/rmj-16.png");
+#[cfg(target_os = "linux")]
 pub const RMJ_24_PNG: &[u8] = include_bytes!("../assets/icons/rmj-24.png");
 pub const RMJ_32_PNG: &[u8] = include_bytes!("../assets/icons/rmj-32.png");
+#[cfg(target_os = "linux")]
 pub const RMJ_48_PNG: &[u8] = include_bytes!("../assets/icons/rmj-48.png");
+#[cfg(target_os = "linux")]
 pub const RMJ_64_PNG: &[u8] = include_bytes!("../assets/icons/rmj-64.png");
 pub const RMJ_128_PNG: &[u8] = include_bytes!("../assets/icons/rmj-128.png");
 pub const RMJ_256_PNG: &[u8] = include_bytes!("../assets/icons/rmj-256.png");

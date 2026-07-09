@@ -98,6 +98,10 @@ impl Binding {
     pub fn display_label(&self) -> &str {
         &self.label
     }
+
+    pub fn is_left_click(&self) -> bool {
+        self.kind == BindingKind::MouseButton && self.label.rsplit('+').next() == Some("Mouse Left")
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,7 +135,16 @@ pub fn config_path() -> PathBuf {
 
 pub fn load_config(path: &Path) -> AppConfig {
     match fs::read_to_string(path) {
-        Ok(contents) => toml::from_str(&contents).unwrap_or_default(),
+        Ok(contents) => {
+            let mut config: AppConfig = toml::from_str(&contents).unwrap_or_default();
+            config.start_binding = config
+                .start_binding
+                .filter(|binding| !binding.is_left_click());
+            config.stop_binding = config
+                .stop_binding
+                .filter(|binding| !binding.is_left_click());
+            config
+        }
         Err(_) => AppConfig::default(),
     }
 }

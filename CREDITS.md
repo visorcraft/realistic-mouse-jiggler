@@ -10,18 +10,31 @@ Realistic Mouse Jiggler is a cross-platform desktop utility for realistic cursor
 
 Repository: <https://github.com/visorcraft/realistic-mouse-jiggler>
 
-## Runtime and platform integrations
+## Direct Rust dependencies
+
+| Crate | Version | License | Project |
+| ----- | ------- | ------- | ------- |
+| anyhow | 1.0.103 | MIT OR Apache-2.0 | https://github.com/dtolnay/anyhow |
+| core-foundation | 0.10.1 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
+| core-graphics | 0.25.0 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
+| directories | 6.0.0 | MIT OR Apache-2.0 | https://github.com/soc/directories-rs |
+| eframe / egui | 0.35.0 | MIT OR Apache-2.0 | https://github.com/emilk/egui |
+| enigo | 0.6.1 | MIT | https://github.com/enigo-rs/enigo |
+| image | 0.25.10 | MIT OR Apache-2.0 | https://github.com/image-rs/image |
+| ksni | 0.3.5 | Unlicense | https://github.com/iovxw/ksni |
+| serde | 1.0.228 | MIT OR Apache-2.0 | https://github.com/serde-rs/serde |
+| toml | 1.1.2+spec-1.1.0 | MIT OR Apache-2.0 | https://github.com/toml-rs/toml |
+| tray-icon | 0.24.1 | MIT OR Apache-2.0 | https://github.com/tauri-apps/tray-icon |
+| windows | 0.62.2 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
+| winresource | 0.1.31 | MIT | https://github.com/BenjaminRi/winresource |
+
+## Optional runtime integration
 
 | Component | License | Project |
 | --------- | ------- | ------- |
-| egui / eframe | MIT OR Apache-2.0 | https://github.com/emilk/egui |
-| enigo | MIT | https://github.com/enigo-rs/enigo |
-| ksni StatusNotifierItem tray | MIT | https://github.com/iovxw/ksni |
-| tray-icon | MIT OR Apache-2.0 | https://github.com/tauri-apps/tray-icon |
-| ydotool (optional Wayland backend) | AGPL-3.0-or-later | https://github.com/ReimuNotMoe/ydotool |
-| Windows API bindings | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
+| ydotool (Wayland cursor backend) | AGPL-3.0-or-later | https://github.com/ReimuNotMoe/ydotool |
 
-## Rust crate dependencies
+## Transitive Rust dependencies
 
 The full machine-generated transitive supplement — every crate, its exact version, and the full text of every distinct license — is bundled in the in-app **Licenses** page and mirrored at [`docs/credits-third-party.md`](docs/credits-third-party.md).
 

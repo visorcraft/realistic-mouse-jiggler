@@ -1172,8 +1172,8 @@ Used by:
 ### Apache License 2.0
 
 Used by:
-- [`zerocopy-derive 0.8.52`](https://github.com/google/zerocopy)
-- [`zerocopy 0.8.52`](https://github.com/google/zerocopy)
+- [`zerocopy-derive 0.8.54`](https://github.com/google/zerocopy)
+- [`zerocopy 0.8.54`](https://github.com/google/zerocopy)
 
 ```
                                  Apache License
@@ -1599,7 +1599,7 @@ Used by:
 
 Used by:
 - [`moxcms 0.8.1`](https://github.com/awxkee/moxcms.git)
-- [`pxfm 0.1.29`](https://github.com/awxkee/pxfm)
+- [`pxfm 0.1.30`](https://github.com/awxkee/pxfm)
 
 ```
                                  Apache License
@@ -3521,7 +3521,7 @@ limitations under the License.
 
 Used by:
 - [`ahash 0.8.12`](https://github.com/tkaitchuck/ahash)
-- [`arrayvec 0.7.7`](https://github.com/bluss/arrayvec)
+- [`arrayvec 0.7.8`](https://github.com/bluss/arrayvec)
 - [`async-channel 2.5.0`](https://github.com/smol-rs/async-channel)
 - [`async-executor 1.14.0`](https://github.com/smol-rs/async-executor)
 - [`async-io 2.6.0`](https://github.com/smol-rs/async-io)
@@ -3535,7 +3535,7 @@ Used by:
 - [`bitflags 2.13.0`](https://github.com/bitflags/bitflags)
 - [`blocking 1.6.2`](https://github.com/smol-rs/blocking)
 - [`bumpalo 3.20.3`](https://github.com/fitzgen/bumpalo)
-- [`cc 1.2.65`](https://github.com/rust-lang/cc-rs)
+- [`cc 1.2.66`](https://github.com/rust-lang/cc-rs)
 - [`cfg-if 1.0.4`](https://github.com/rust-lang/cfg-if)
 - [`concurrent-queue 2.5.0`](https://github.com/smol-rs/concurrent-queue)
 - [`core-foundation-sys 0.8.7`](https://github.com/servo/core-foundation-rs)
@@ -3545,8 +3545,8 @@ Used by:
 - [`core-graphics-types 0.2.0`](https://github.com/servo/core-foundation-rs)
 - [`core-graphics 0.23.2`](https://github.com/servo/core-foundation-rs)
 - [`core-graphics 0.25.0`](https://github.com/servo/core-foundation-rs)
-- [`crossbeam-channel 0.5.15`](https://github.com/crossbeam-rs/crossbeam)
-- [`crossbeam-utils 0.8.21`](https://github.com/crossbeam-rs/crossbeam)
+- [`crossbeam-channel 0.5.16`](https://github.com/crossbeam-rs/crossbeam)
+- [`crossbeam-utils 0.8.22`](https://github.com/crossbeam-rs/crossbeam)
 - [`displaydoc 0.2.6`](https://github.com/yaahc/displaydoc)
 - [`either 1.16.0`](https://github.com/rayon-rs/either)
 - [`equivalent 1.0.2`](https://github.com/indexmap-rs/equivalent)
@@ -3568,7 +3568,7 @@ Used by:
 - [`idna_adapter 1.2.2`](https://github.com/hsivonen/idna_adapter)
 - [`indexmap 2.14.0`](https://github.com/indexmap-rs/indexmap)
 - [`itertools 0.14.0`](https://github.com/rust-itertools/itertools)
-- [`jobserver 0.1.34`](https://github.com/rust-lang/jobserver-rs)
+- [`jobserver 0.1.35`](https://github.com/rust-lang/jobserver-rs)
 - [`js-sys 0.3.103`](https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys)
 - [`khronos-egl 6.0.0`](https://github.com/timothee-haudebourg/khronos-egl)
 - [`linux-raw-sys 0.12.1`](https://github.com/sunfishcode/linux-raw-sys)
@@ -5955,7 +5955,7 @@ Used by:
 - [`linebender_resource_handle 0.1.1`](https://github.com/linebender/raw_resource_handle)
 - [`litrs 1.0.0`](https://github.com/LukasKalbertodt/litrs)
 - [`miniz_oxide 0.8.9`](https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide)
-- [`naga 29.0.3`](https://github.com/gfx-rs/wgpu)
+- [`naga 29.0.4`](https://github.com/gfx-rs/wgpu)
 - [`ndk-context 0.1.1`](https://github.com/rust-windowing/android-ndk-rs)
 - [`ndk-sys 0.6.0+11769913`](https://github.com/rust-mobile/ndk)
 - [`ndk 0.9.0`](https://github.com/rust-mobile/ndk)
@@ -5981,8 +5981,8 @@ Used by:
 - [`r-efi 6.0.0`](https://github.com/r-efi/r-efi)
 - [`range-alloc 0.1.5`](https://github.com/gfx-rs/range-alloc)
 - [`raw-window-handle 0.6.2`](https://github.com/rust-windowing/raw-window-handle)
-- [`rustc-hash 2.1.2`](https://github.com/rust-lang/rustc-hash)
-- [`rustversion 1.0.22`](https://github.com/dtolnay/rustversion)
+- [`rustc-hash 2.1.3`](https://github.com/rust-lang/rustc-hash)
+- [`rustversion 1.0.23`](https://github.com/dtolnay/rustversion)
 - [`semver 1.0.28`](https://github.com/dtolnay/semver)
 - [`serde 1.0.228`](https://github.com/serde-rs/serde)
 - [`serde_core 1.0.228`](https://github.com/serde-rs/serde)
@@ -6001,15 +6001,15 @@ Used by:
 - [`unicode-ident 1.0.24`](https://github.com/dtolnay/unicode-ident)
 - [`vello_common 0.0.9`](https://github.com/linebender/vello)
 - [`vello_cpu 0.0.9`](https://github.com/linebender/vello)
-- [`wgpu-core-deps-apple 29.0.3`](https://github.com/gfx-rs/wgpu)
-- [`wgpu-core-deps-emscripten 29.0.3`](https://github.com/gfx-rs/wgpu)
-- [`wgpu-core-deps-wasm 29.0.3`](https://github.com/gfx-rs/wgpu)
-- [`wgpu-core-deps-windows-linux-android 29.0.3`](https://github.com/gfx-rs/wgpu)
-- [`wgpu-core 29.0.3`](https://github.com/gfx-rs/wgpu)
-- [`wgpu-hal 29.0.3`](https://github.com/gfx-rs/wgpu)
-- [`wgpu-naga-bridge 29.0.3`](https://github.com/gfx-rs/wgpu)
-- [`wgpu-types 29.0.3`](https://github.com/gfx-rs/wgpu)
-- [`wgpu 29.0.3`](https://github.com/gfx-rs/wgpu)
+- [`wgpu-core-deps-apple 29.0.4`](https://github.com/gfx-rs/wgpu)
+- [`wgpu-core-deps-emscripten 29.0.4`](https://github.com/gfx-rs/wgpu)
+- [`wgpu-core-deps-wasm 29.0.4`](https://github.com/gfx-rs/wgpu)
+- [`wgpu-core-deps-windows-linux-android 29.0.4`](https://github.com/gfx-rs/wgpu)
+- [`wgpu-core 29.0.4`](https://github.com/gfx-rs/wgpu)
+- [`wgpu-hal 29.0.4`](https://github.com/gfx-rs/wgpu)
+- [`wgpu-naga-bridge 29.0.4`](https://github.com/gfx-rs/wgpu)
+- [`wgpu-types 29.0.4`](https://github.com/gfx-rs/wgpu)
+- [`wgpu 29.0.4`](https://github.com/gfx-rs/wgpu)
 
 ```
 Apache License
@@ -6646,7 +6646,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ### MIT License
 
 Used by:
-- [`bytes 1.12.0`](https://github.com/tokio-rs/bytes)
+- [`bytes 1.12.1`](https://github.com/tokio-rs/bytes)
 
 ```
 Copyright (c) 2018 Carl Lerche
@@ -6937,12 +6937,12 @@ SOFTWARE.
 ### MIT License
 
 Used by:
-- [`zbus 5.16.0`](https://github.com/z-galaxy/zbus/)
-- [`zbus_macros 5.16.0`](https://github.com/z-galaxy/zbus/)
-- [`zbus_names 4.3.2`](https://github.com/z-galaxy/zbus/)
-- [`zbus_xml 5.1.1`](https://github.com/z-galaxy/zbus/)
-- [`zvariant 5.12.0`](https://github.com/z-galaxy/zbus/)
-- [`zvariant_derive 5.12.0`](https://github.com/z-galaxy/zbus/)
+- [`zbus 5.17.0`](https://github.com/z-galaxy/zbus/)
+- [`zbus_macros 5.17.0`](https://github.com/z-galaxy/zbus/)
+- [`zbus_names 4.3.3`](https://github.com/z-galaxy/zbus/)
+- [`zbus_xml 5.2.0`](https://github.com/z-galaxy/zbus/)
+- [`zvariant 5.13.0`](https://github.com/z-galaxy/zbus/)
+- [`zvariant_derive 5.13.0`](https://github.com/z-galaxy/zbus/)
 
 ```
 Copyright (c) 2024 Zeeshan Ali Khan &amp; zbus contributors
@@ -7340,7 +7340,7 @@ Used by:
 - [`x11-dl 2.21.0`](https://github.com/AltF02/x11-rs.git)
 - [`zbus-lockstep-macros 0.5.2`](https://github.com/luukvanderduim/zbus-lockstep)
 - [`zbus-lockstep 0.5.2`](https://github.com/luukvanderduim/zbus-lockstep)
-- [`zvariant_utils 3.4.0`](https://github.com/z-galaxy/zbus/)
+- [`zvariant_utils 3.5.0`](https://github.com/z-galaxy/zbus/)
 
 ```
 Permission is hereby granted, free of charge, to any
@@ -7470,7 +7470,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Used by:
 - [`byteorder-lite 0.1.0`](https://github.com/image-rs/byteorder-lite)
-- [`memchr 2.8.2`](https://github.com/BurntSushi/memchr)
+- [`memchr 2.8.3`](https://github.com/BurntSushi/memchr)
 - [`walkdir 2.5.0`](https://github.com/BurntSushi/walkdir)
 
 ```
