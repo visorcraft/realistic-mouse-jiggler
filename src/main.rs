@@ -22,12 +22,6 @@ fn main() -> eframe::Result<()> {
     let capture_target: SharedCaptureTarget = Arc::new(Mutex::new(CaptureState::default()));
     let (tx, rx) = mpsc::channel();
 
-    input::spawn_input_listener(
-        tx.clone(),
-        Arc::clone(&running),
-        Arc::clone(&config),
-        Arc::clone(&capture_target),
-    );
     jiggler::spawn_jiggler(tx.clone(), Arc::clone(&running), Arc::clone(&config));
     #[cfg(target_os = "linux")]
     icons::install_linux_desktop_icon();
@@ -50,6 +44,12 @@ fn main() -> eframe::Result<()> {
         native_options,
         Box::new(move |cc| {
             app::configure_ui(&cc.egui_ctx);
+            input::spawn_input_listener(
+                tx.clone(),
+                Arc::clone(&running),
+                Arc::clone(&config),
+                Arc::clone(&capture_target),
+            );
             Ok(Box::new(MouseJigglerApp::new(
                 tx,
                 rx,

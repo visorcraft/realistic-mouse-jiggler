@@ -1,6 +1,6 @@
 [package]
 name = "realistic-mouse-jiggler"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 rust-version = "1.92"
 authors = ["VisorCraft LLC <packages@visorcraft.com>"]
@@ -28,7 +28,7 @@ core-foundation = "0.10.1"
 core-graphics = "0.25.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Input", "Win32_UI_WindowsAndMessaging"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 tray-icon = { version = "0.24.1", default-features = false }

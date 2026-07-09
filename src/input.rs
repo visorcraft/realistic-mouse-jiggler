@@ -510,16 +510,25 @@ mod platform {
 #[cfg(target_os = "windows")]
 mod platform {
     use std::{
+        mem::size_of,
         sync::{atomic::AtomicBool, mpsc::Sender, Arc, Mutex, OnceLock, RwLock},
         thread,
     };
 
+    use windows::core::w;
     use windows::Win32::{
         Foundation::{LPARAM, LRESULT, WPARAM},
-        UI::WindowsAndMessaging::{
-            CallNextHookEx, GetMessageW, SetWindowsHookExW, UnhookWindowsHookEx, KBDLLHOOKSTRUCT,
-            MSG, MSLLHOOKSTRUCT, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN,
-            WM_MBUTTONDOWN, WM_RBUTTONDOWN, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_XBUTTONDOWN,
+        UI::{
+            Input::{
+                GetRawInputData, RegisterRawInputDevices, HRAWINPUT, RAWINPUT, RAWINPUTDEVICE,
+                RIDEV_INPUTSINK, RID_INPUT, RIM_TYPEKEYBOARD,
+            },
+            WindowsAndMessaging::{
+                CallNextHookEx, CreateWindowExW, DefWindowProcW, GetMessageW, SetWindowsHookExW,
+                UnhookWindowsHookEx, HWND_MESSAGE, MSG, MSLLHOOKSTRUCT, WH_MOUSE_LL,
+                WINDOW_EX_STYLE, WINDOW_STYLE, WM_INPUT, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN,
+                WM_MBUTTONDOWN, WM_RBUTTONDOWN, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_XBUTTONDOWN,
+            },
         },
     };
 
@@ -562,22 +571,20 @@ mod platform {
                 return;
             }
 
-            let keyboard_hook =
-                match unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), None, 0) } {
-                    Ok(hook) => hook,
-                    Err(error) => {
-                        let _ = error_tx.send(AppEvent::Error(format!(
-                            "Could not install Windows keyboard hook: {error}"
-                        )));
-                        return;
-                    }
-                };
+            let input_window = match create_raw_input_window() {
+                Ok(window) => window,
+                Err(error) => {
+                    let _ = error_tx.send(AppEvent::Error(format!(
+                        "Could not register Windows keyboard input: {error}"
+                    )));
+                    return;
+                }
+            };
 
             let mouse_hook =
                 match unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), None, 0) } {
                     Ok(hook) => hook,
                     Err(error) => {
-                        let _ = unsafe { UnhookWindowsHookEx(keyboard_hook) };
                         let _ = error_tx.send(AppEvent::Error(format!(
                             "Could not install Windows mouse hook: {error}"
                         )));
@@ -590,26 +597,86 @@ mod platform {
             ));
 
             let mut message = MSG::default();
-            while unsafe { GetMessageW(&mut message, None, 0, 0).as_bool() } {}
+            while unsafe { GetMessageW(&mut message, None, 0, 0).0 } > 0 {
+                if message.message == WM_INPUT {
+                    dispatch_raw_input(message.lParam);
+                    unsafe {
+                        DefWindowProcW(
+                            input_window,
+                            message.message,
+                            message.wParam,
+                            message.lParam,
+                        )
+                    };
+                }
+            }
 
-            let _ = unsafe { UnhookWindowsHookEx(keyboard_hook) };
             let _ = unsafe { UnhookWindowsHookEx(mouse_hook) };
         });
     }
 
-    unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-        if code >= 0 {
-            let message = wparam.0 as u32;
-            if matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN | WM_KEYUP | WM_SYSKEYUP) {
-                let event = unsafe { *(lparam.0 as *const KBDLLHOOKSTRUCT) };
-                dispatch_key(
-                    event.vkCode,
-                    message == WM_KEYDOWN || message == WM_SYSKEYDOWN,
-                );
-            }
+    fn create_raw_input_window() -> windows::core::Result<windows::Win32::Foundation::HWND> {
+        let window = unsafe {
+            CreateWindowExW(
+                WINDOW_EX_STYLE::default(),
+                w!("STATIC"),
+                w!("Realistic Mouse Jiggler Input"),
+                WINDOW_STYLE::default(),
+                0,
+                0,
+                0,
+                0,
+                Some(HWND_MESSAGE),
+                None,
+                None,
+                None,
+            )?
+        };
+
+        unsafe {
+            RegisterRawInputDevices(
+                &[RAWINPUTDEVICE {
+                    usUsagePage: 0x01,
+                    usUsage: 0x06,
+                    dwFlags: RIDEV_INPUTSINK,
+                    hwndTarget: window,
+                }],
+                size_of::<RAWINPUTDEVICE>() as u32,
+            )?;
         }
 
-        unsafe { CallNextHookEx(None, code, wparam, lparam) }
+        Ok(window)
+    }
+
+    fn dispatch_raw_input(lparam: LPARAM) {
+        let mut input = RAWINPUT::default();
+        let mut size = size_of::<RAWINPUT>() as u32;
+        let copied = unsafe {
+            GetRawInputData(
+                HRAWINPUT(lparam.0 as _),
+                RID_INPUT,
+                Some((&mut input as *mut RAWINPUT).cast()),
+                &mut size,
+                size_of::<windows::Win32::UI::Input::RAWINPUTHEADER>() as u32,
+            )
+        };
+
+        if copied == u32::MAX || input.header.dwType != RIM_TYPEKEYBOARD.0 {
+            return;
+        }
+
+        let keyboard = unsafe { input.data.keyboard };
+        if let Some(pressed) = key_pressed(keyboard.Message) {
+            dispatch_key(keyboard.VKey.into(), pressed);
+        }
+    }
+
+    fn key_pressed(message: u32) -> Option<bool> {
+        match message {
+            WM_KEYDOWN | WM_SYSKEYDOWN => Some(true),
+            WM_KEYUP | WM_SYSKEYUP => Some(false),
+            _ => None,
+        }
     }
 
     unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
@@ -765,6 +832,20 @@ mod platform {
                 .map(|ch| ch.to_string())
                 .unwrap_or_else(|| format!("VK {vk_code}")),
             other => format!("VK {other}"),
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn raw_keyboard_messages_report_key_state() {
+            assert_eq!(key_pressed(WM_KEYDOWN), Some(true));
+            assert_eq!(key_pressed(WM_SYSKEYDOWN), Some(true));
+            assert_eq!(key_pressed(WM_KEYUP), Some(false));
+            assert_eq!(key_pressed(WM_SYSKEYUP), Some(false));
+            assert_eq!(key_pressed(WM_INPUT), None);
         }
     }
 }
