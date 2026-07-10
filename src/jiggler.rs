@@ -5,11 +5,11 @@ use std::{
         Arc, RwLock,
     },
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 #[cfg(target_os = "linux")]
-use std::{env, process::Command};
+use std::{env, process::Command, time::Instant};
 
 use enigo::{Coordinate, Enigo, Mouse, Settings};
 
@@ -47,6 +47,14 @@ const RANDOM_MAX_DURATION_SEC: f64 = 10.0;
 const RANDOM_WOBBLE_FREQ: f64 = 2.3;
 const RANDOM_REALISTIC_WOBBLE_Y: f64 = 10.0;
 
+// Realistic-mode micro-breaks: while moving, pause every 1..20s for 5..15s,
+// then always resume. The motion clock freezes during a pause so the path
+// continues from exactly where it stopped.
+const PAUSE_MOVE_MIN_SEC: f64 = 1.0;
+const PAUSE_MOVE_MAX_SEC: f64 = 20.0;
+const PAUSE_MIN_SEC: f64 = 5.0;
+const PAUSE_MAX_SEC: f64 = 15.0;
+
 #[derive(Clone, Copy)]
 struct RandomState {
     dir: i32,
@@ -70,6 +78,67 @@ impl RandomState {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PausePhase {
+    Moving,
+    Pausing,
+}
+
+/// Realistic-mode micro-break scheduler. Alternates between a moving phase
+/// (1..20s) and a pausing phase (5..15s); a pause always flips back to moving
+/// so movement always resumes automatically.
+#[derive(Clone, Copy, Debug)]
+struct PauseState {
+    phase: PausePhase,
+    elapsed: f64,
+    duration: f64,
+}
+
+impl PauseState {
+    fn new() -> Self {
+        Self {
+            phase: PausePhase::Moving,
+            elapsed: 0.0,
+            duration: PAUSE_MOVE_MIN_SEC,
+        }
+    }
+
+    fn restart(&mut self) {
+        self.phase = PausePhase::Moving;
+        self.elapsed = 0.0;
+        self.duration = random_moving_duration();
+    }
+
+    /// Advance the wall clock by `dt`, flipping phase when an interval ends.
+    /// Returns `true` while in a moving phase (caller should move the cursor)
+    /// and `false` while pausing (caller holds the cursor still).
+    fn update(&mut self, dt: f64) -> bool {
+        self.elapsed += dt;
+        if self.elapsed >= self.duration {
+            self.elapsed = 0.0;
+            match self.phase {
+                PausePhase::Moving => {
+                    self.phase = PausePhase::Pausing;
+                    self.duration = random_pause_duration();
+                }
+                PausePhase::Pausing => {
+                    self.phase = PausePhase::Moving;
+                    self.duration = random_moving_duration();
+                }
+            }
+        }
+        self.phase == PausePhase::Moving
+    }
+}
+
+fn random_moving_duration() -> f64 {
+    PAUSE_MOVE_MIN_SEC + fastrand::f64() * (PAUSE_MOVE_MAX_SEC - PAUSE_MOVE_MIN_SEC)
+}
+
+fn random_pause_duration() -> f64 {
+    PAUSE_MIN_SEC + fastrand::f64() * (PAUSE_MAX_SEC - PAUSE_MIN_SEC)
+}
+
 pub fn spawn_jiggler(
     tx: Sender<AppEvent>,
     running: Arc<AtomicBool>,
@@ -84,7 +153,10 @@ pub fn spawn_jiggler(
         // state machine and cursor restoration stay consistent.
         let mut active_mode = MovementMode::Realistic;
         let mut active_distance = MovementDistance::Default;
-        let mut started_at = Instant::now();
+        // Motion clock: advances only while the cursor is moving, so Realistic
+        // pauses freeze the path and resume from the same spot.
+        let mut active_elapsed = 0.0_f64;
+        let mut pause = PauseState::new();
 
         // Relative displacement from the origin (Default / Random).
         let mut current_x = 0_i32;
@@ -141,12 +213,15 @@ pub fn spawn_jiggler(
                     .unwrap_or_default();
                 active_mode = snapshot.0;
                 active_distance = snapshot.1;
-                started_at = Instant::now();
+                active_elapsed = 0.0;
                 current_x = 0;
                 current_y = 0;
                 edge_origin = None;
                 edge_bounds = None;
                 random.burst_elapsed = 0.0;
+                if active_mode == MovementMode::Realistic {
+                    pause.restart();
+                }
 
                 if active_distance == MovementDistance::EdgeToEdge {
                     activate_edge_to_edge(
@@ -165,37 +240,45 @@ pub fn spawn_jiggler(
                 was_running = true;
             }
 
-            let cursor = mover.as_mut().expect("cursor mover should exist");
-            let step_result = match active_distance {
-                MovementDistance::Default => step_default(
-                    cursor,
-                    active_mode,
-                    started_at.elapsed().as_secs_f64(),
-                    &mut current_x,
-                    &mut current_y,
-                ),
-                MovementDistance::EdgeToEdge => {
-                    // bounds/origin are guaranteed Some here: activation only
-                    // keeps EdgeToEdge when both are available, otherwise it
-                    // falls back to Default.
-                    let bounds = edge_bounds.expect("edge bounds set on activation");
-                    let origin_y = edge_origin.expect("edge origin set on activation").1;
-                    let (x, y) = edge_position(
+            // In Realistic mode the pause scheduler decides whether this tick
+            // moves or holds the cursor; Simple mode always moves.
+            let moving = if active_mode == MovementMode::Realistic {
+                pause.update(STEP_SEC)
+            } else {
+                true
+            };
+
+            let step_result = if moving {
+                active_elapsed += STEP_SEC;
+                let cursor = mover.as_mut().expect("cursor mover should exist");
+                match active_distance {
+                    MovementDistance::Default => step_default(
+                        cursor,
                         active_mode,
-                        bounds,
-                        origin_y,
-                        started_at.elapsed().as_secs_f64(),
-                    );
-                    cursor.move_absolute(x, y)
+                        active_elapsed,
+                        &mut current_x,
+                        &mut current_y,
+                    ),
+                    MovementDistance::EdgeToEdge => {
+                        // bounds/origin are guaranteed Some here: activation only
+                        // keeps EdgeToEdge when both are available, otherwise it
+                        // falls back to Default.
+                        let bounds = edge_bounds.expect("edge bounds set on activation");
+                        let origin_y = edge_origin.expect("edge origin set on activation").1;
+                        let (x, y) = edge_position(active_mode, bounds, origin_y, active_elapsed);
+                        cursor.move_absolute(x, y)
+                    }
+                    MovementDistance::Random => step_random(
+                        cursor,
+                        active_mode,
+                        active_elapsed,
+                        &mut current_x,
+                        &mut current_y,
+                        &mut random,
+                    ),
                 }
-                MovementDistance::Random => step_random(
-                    cursor,
-                    active_mode,
-                    started_at.elapsed().as_secs_f64(),
-                    &mut current_x,
-                    &mut current_y,
-                    &mut random,
-                ),
+            } else {
+                Ok(())
             };
 
             if let Err(error) = step_result {
@@ -624,5 +707,55 @@ mod tests {
         } else {
             assert!(edge_bounds_supported(huge));
         }
+    }
+
+    #[test]
+    fn pause_durations_stay_in_range() {
+        for _ in 0..1_000 {
+            assert!((PAUSE_MOVE_MIN_SEC..=PAUSE_MOVE_MAX_SEC).contains(&random_moving_duration()));
+            assert!((PAUSE_MIN_SEC..=PAUSE_MAX_SEC).contains(&random_pause_duration()));
+        }
+    }
+
+    #[test]
+    fn pause_starts_moving_then_alternates_and_always_resumes() {
+        let mut pause = PauseState::new();
+        pause.restart();
+        assert_eq!(
+            pause.phase,
+            PausePhase::Moving,
+            "must start in a moving phase"
+        );
+
+        let dt = 0.05_f64;
+        let mut saw_pause = false;
+        let mut saw_resume_after_pause = false;
+        let mut longest_pause = 0.0_f64;
+        let mut current_pause = 0.0_f64;
+
+        // Simulate ~400s of wall time: many move/pause cycles.
+        for _ in 0..8_000 {
+            if pause.update(dt) {
+                if saw_pause {
+                    saw_resume_after_pause = true;
+                }
+                longest_pause = longest_pause.max(current_pause);
+                current_pause = 0.0;
+            } else {
+                saw_pause = true;
+                current_pause += dt;
+            }
+        }
+        longest_pause = longest_pause.max(current_pause);
+
+        assert!(saw_pause, "Realistic mode never paused");
+        assert!(
+            saw_resume_after_pause,
+            "movement did not resume after a pause"
+        );
+        assert!(
+            longest_pause <= PAUSE_MAX_SEC + dt,
+            "a pause ran longer than the configured maximum: {longest_pause}"
+        );
     }
 }
