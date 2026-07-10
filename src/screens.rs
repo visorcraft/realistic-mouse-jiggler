@@ -76,8 +76,8 @@ mod platform {
 
     pub fn cursor_position() -> Option<(i32, i32)> {
         let mut point = POINT::default();
-        let ok = unsafe { GetCursorPos(&mut point) };
-        if ok.0 == 0 {
+        // GetCursorPos returns windows::core::Result<()> in windows-rs 0.62.
+        if unsafe { GetCursorPos(&mut point) }.is_err() {
             return None;
         }
         Some((point.x, point.y))
@@ -87,7 +87,8 @@ mod platform {
 #[cfg(target_os = "macos")]
 mod platform {
     use core_graphics::display::CGDisplay;
-    use core_graphics::event::{CGEvent, CGEventSource, CGEventSourceStateID};
+    use core_graphics::event::CGEvent;
+    use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
     use core_graphics::geometry::CGRect;
 
     use super::Bounds;

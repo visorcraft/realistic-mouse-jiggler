@@ -428,13 +428,10 @@ impl CursorMover {
     fn move_absolute(&mut self, x: i32, y: i32) -> Result<(), String> {
         // enigo's Windows absolute move normalises against the primary screen
         // only (no MOUSEEVENTF_VIRTUALDESK), so use SetCursorPos directly to
-        // reach every monitor, including negative origins.
-        let ok = unsafe { windows::Win32::UI::WindowsAndMessaging::SetCursorPos(x, y) };
-        if ok.0 == 0 {
-            Err("Could not move cursor (SetCursorPos failed).".to_string())
-        } else {
-            Ok(())
-        }
+        // reach every monitor, including negative origins. SetCursorPos returns
+        // windows::core::Result<()> in windows-rs 0.62.
+        unsafe { windows::Win32::UI::WindowsAndMessaging::SetCursorPos(x, y) }
+            .map_err(|err| format!("Could not move cursor (SetCursorPos failed): {err}"))
     }
 
     #[cfg(target_os = "macos")]
