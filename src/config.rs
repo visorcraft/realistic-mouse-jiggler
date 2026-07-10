@@ -27,6 +27,32 @@ impl MovementMode {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum MovementDistance {
+    /// Oscillate around the cursor's starting point (original behaviour).
+    #[default]
+    Default,
+    /// Sweep from the left edge to the right edge of every attached screen.
+    /// Falls back to `Default` where absolute positioning is unavailable.
+    EdgeToEdge,
+    /// Re-rolled horizontal bursts: a random direction (left/right) for a
+    /// random duration between 1 and 10 seconds, bounded so it can't drift off.
+    Random,
+}
+
+impl MovementDistance {
+    pub const ALL: [Self; 3] = [Self::Default, Self::EdgeToEdge, Self::Random];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Default => "Default",
+            Self::EdgeToEdge => "Edge-to-Edge",
+            Self::Random => "Random",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AppTheme {
     #[default]
     System,
@@ -109,6 +135,8 @@ pub struct AppConfig {
     #[serde(default)]
     pub movement_mode: MovementMode,
     #[serde(default)]
+    pub distance: MovementDistance,
+    #[serde(default)]
     pub theme: AppTheme,
     #[serde(default)]
     pub start_binding: Option<Binding>,
@@ -120,6 +148,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             movement_mode: MovementMode::Realistic,
+            distance: MovementDistance::Default,
             theme: AppTheme::System,
             start_binding: None,
             stop_binding: None,
@@ -157,4 +186,65 @@ pub fn save_config(path: &Path, config: &AppConfig) -> anyhow::Result<()> {
     let contents = toml::to_string_pretty(config)?;
     fs::write(path, contents)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn movement_distance_serializes_as_snake_case() {
+        // TOML documents are tables, so assert via the containing config struct.
+        let config = AppConfig {
+            distance: MovementDistance::EdgeToEdge,
+            ..Default::default()
+        };
+        let encoded = toml::to_string(&config).unwrap();
+        assert!(
+            encoded.contains("distance = \"edge_to_edge\""),
+            "unexpected encoding: {encoded}"
+        );
+    }
+
+    #[test]
+    fn movement_distance_round_trips() {
+        for distance in MovementDistance::ALL {
+            let config = AppConfig {
+                distance,
+                ..Default::default()
+            };
+            let encoded = toml::to_string(&config).unwrap();
+            let decoded: AppConfig = toml::from_str(&encoded).unwrap();
+            assert_eq!(decoded.distance, distance);
+        }
+    }
+
+    #[test]
+    fn old_config_without_distance_loads_as_default_and_keeps_bindings() {
+        let old = r#"
+movement_mode = "simple"
+theme = "dark"
+
+[start_binding]
+kind = "key"
+code = "F6"
+label = "F6"
+
+[stop_binding]
+kind = "key"
+code = "F7"
+label = "F7"
+"#;
+        let config: AppConfig = toml::from_str(old).unwrap();
+        assert_eq!(config.distance, MovementDistance::Default);
+        assert_eq!(config.movement_mode, MovementMode::Simple);
+        assert_eq!(config.theme, AppTheme::Dark);
+        assert!(config.start_binding.is_some());
+        assert!(config.stop_binding.is_some());
+    }
+
+    #[test]
+    fn default_config_uses_default_distance() {
+        assert_eq!(AppConfig::default().distance, MovementDistance::Default);
+    }
 }

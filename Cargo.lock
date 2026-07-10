@@ -2747,7 +2747,7 @@ dependencies = [
 
 [[package]]
 name = "realistic-mouse-jiggler"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "core-foundation 0.10.1",
@@ -2755,6 +2755,7 @@ dependencies = [
  "directories",
  "eframe",
  "enigo",
+ "fastrand",
  "image",
  "ksni",
  "serde",
@@ -2762,6 +2763,7 @@ dependencies = [
  "tray-icon",
  "windows 0.62.2",
  "winresource",
+ "x11rb",
 ]
 
 [[package]]

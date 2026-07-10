@@ -6,6 +6,7 @@ mod events;
 mod icons;
 mod input;
 mod jiggler;
+mod screens;
 mod tray;
 
 use std::sync::{atomic::AtomicBool, mpsc, Arc, Mutex, RwLock};

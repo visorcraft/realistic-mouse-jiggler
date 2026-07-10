@@ -16,7 +16,7 @@ use eframe::egui::{
 use std::process::{Command, Stdio};
 
 use crate::{
-    config::{self, AppConfig, AppTheme, Binding, MovementMode},
+    config::{self, AppConfig, AppTheme, Binding, MovementDistance, MovementMode},
     events::AppEvent,
     icons,
     input::{BindTarget, CaptureRequest, SharedCaptureTarget},
@@ -490,6 +490,18 @@ impl MouseJigglerApp {
         if let Ok(mut config) = self.config.write() {
             config.movement_mode = mode;
             self.status = format!("Movement set to {}.", mode.label());
+            if let Err(error) = config::save_config(&self.config_path, &config) {
+                self.last_error = Some(format!("Could not save config: {error}"));
+            } else {
+                self.last_error = None;
+            }
+        }
+    }
+
+    fn set_distance(&mut self, distance: MovementDistance) {
+        if let Ok(mut config) = self.config.write() {
+            config.distance = distance;
+            self.status = format!("Distance set to {}.", distance.label());
             if let Err(error) = config::save_config(&self.config_path, &config) {
                 self.last_error = Some(format!("Could not save config: {error}"));
             } else {
@@ -1033,21 +1045,6 @@ impl MouseJigglerApp {
 
                 ui.add_space(16.0);
                 card(ui, palette, |ui| {
-                    ui.label(strong("Movement", palette, 16.0));
-                    ui.label(muted("Choose the cursor movement style.", palette, 13.0));
-                    ui.add_space(10.0);
-                    let mut selected = config.movement_mode;
-                    ui.horizontal(|ui| {
-                        for mode in MovementMode::ALL {
-                            if ui.radio_value(&mut selected, mode, mode.label()).clicked() {
-                                self.set_mode(mode);
-                            }
-                        }
-                    });
-                });
-
-                ui.add_space(16.0);
-                card(ui, palette, |ui| {
                     ui.label(strong("Global bindings", palette, 16.0));
                     ui.label(muted(
                         "Bindings work while the window is hidden in the tray.",
@@ -1095,6 +1092,63 @@ impl MouseJigglerApp {
         ScrollArea::vertical().show(ui, |ui| {
             body(ui, |ui| {
 
+            card(ui, palette, |ui| {
+                ui.label(strong("Movement", palette, 16.0));
+                ui.label(muted(
+                    "Choose the cursor movement style and how far it travels. Distance applies on the next start.",
+                    palette,
+                    13.0,
+                ));
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Style").color(palette.text));
+                    ui.add_space(20.0);
+                    let mut movement = config.movement_mode;
+                    for mode in MovementMode::ALL {
+                        if ui.radio_value(&mut movement, mode, mode.label()).clicked() {
+                            self.set_mode(mode);
+                        }
+                    }
+                });
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Distance").color(palette.text));
+                    ui.add_space(20.0);
+                    let mut selected = config.distance;
+                    let combo_id = ui.make_persistent_id("distance_picker");
+                    let response = egui::ComboBox::from_id_salt("distance_picker")
+                        .width(260.0)
+                        .selected_text(selected.label())
+                        .show_ui(ui, |ui| {
+                            for distance in MovementDistance::ALL {
+                                ui.selectable_value(&mut selected, distance, distance.label());
+                            }
+                        })
+                        .response;
+                    if response.clicked() {
+                        response.request_focus();
+                    }
+                    if response.has_focus() || egui::ComboBox::is_open(ui.ctx(), combo_id) {
+                        let direction = ui.input(|input| {
+                            if input.key_pressed(egui::Key::ArrowDown) {
+                                1
+                            } else if input.key_pressed(egui::Key::ArrowUp) {
+                                -1
+                            } else {
+                                0
+                            }
+                        });
+                        if direction != 0 {
+                            selected = adjacent_distance(selected, direction);
+                        }
+                    }
+                    if selected != config.distance {
+                        self.set_distance(selected);
+                    }
+                });
+            });
+
+            ui.add_space(16.0);
             card(ui, palette, |ui| {
                 ui.label(strong("Appearance", palette, 16.0));
                 ui.label(muted("Theme changes apply immediately and persist across launches.", palette, 13.0));
@@ -1707,6 +1761,16 @@ fn adjacent_theme(current: AppTheme, direction: isize) -> AppTheme {
     let index = all
         .iter()
         .position(|theme| *theme == current)
+        .unwrap_or_default() as isize;
+    all[(index + direction).rem_euclid(len) as usize]
+}
+
+fn adjacent_distance(current: MovementDistance, direction: isize) -> MovementDistance {
+    let all = MovementDistance::ALL;
+    let len = all.len() as isize;
+    let index = all
+        .iter()
+        .position(|distance| *distance == current)
         .unwrap_or_default() as isize;
     all[(index + direction).rem_euclid(len) as usize]
 }
