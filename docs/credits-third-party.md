@@ -14,8 +14,8 @@ If you have questions about license compliance, please contact
 
 ## Licenses in use
 
-- **Apache License 2.0** (313 crates)
-- **MIT License** (86 crates)
+- **Apache License 2.0** (319 crates)
+- **MIT License** (87 crates)
 - **Unicode License v3** (19 crates)
 - **zlib License** (3 crates)
 - **BSD 3-Clause &quot;New&quot; or &quot;Revised&quot; License** (2 crates)
@@ -3537,6 +3537,7 @@ Used by:
 - [`bumpalo 3.20.3`](https://github.com/fitzgen/bumpalo)
 - [`cc 1.2.66`](https://github.com/rust-lang/cc-rs)
 - [`cfg-if 1.0.4`](https://github.com/rust-lang/cfg-if)
+- [`cgl 0.3.2`](https://github.com/servo/cgl-rs)
 - [`concurrent-queue 2.5.0`](https://github.com/smol-rs/concurrent-queue)
 - [`core-foundation-sys 0.8.7`](https://github.com/servo/core-foundation-rs)
 - [`core-foundation 0.10.1`](https://github.com/servo/core-foundation-rs)
@@ -5412,6 +5413,9 @@ Apache License
 ### Apache License 2.0
 
 Used by:
+- [`glutin 0.32.3`](https://github.com/rust-windowing/glutin)
+- [`glutin_egl_sys 0.7.1`](https://github.com/rust-windowing/glutin)
+- [`glutin_glx_sys 0.6.1`](https://github.com/rust-windowing/glutin)
 - [`glutin_wgl_sys 0.6.1`](https://github.com/rust-windowing/glutin)
 
 ```
@@ -5930,12 +5934,14 @@ Used by:
 - [`directories 6.0.0`](https://github.com/soc/directories-rs)
 - [`dirs-sys 0.5.0`](https://github.com/dirs-dev/dirs-sys-rs)
 - [`dirs 6.0.0`](https://github.com/soc/dirs-rs)
+- [`dispatch2 0.3.1`](https://github.com/madsmtm/objc2)
 - [`document-features 0.2.12`](https://github.com/slint-ui/document-features)
 - [`ecolor 0.35.0`](https://github.com/emilk/egui)
 - [`eframe 0.35.0`](https://github.com/emilk/egui/tree/main/crates/eframe)
 - [`egui-wgpu 0.35.0`](https://github.com/emilk/egui/tree/main/crates/egui-wgpu)
 - [`egui-winit 0.35.0`](https://github.com/emilk/egui/tree/main/crates/egui-winit)
 - [`egui 0.35.0`](https://github.com/emilk/egui)
+- [`egui_glow 0.35.0`](https://github.com/emilk/egui/tree/main/crates/egui_glow)
 - [`emath 0.35.0`](https://github.com/emilk/egui/tree/main/crates/emath)
 - [`epaint 0.35.0`](https://github.com/emilk/egui/tree/main/crates/epaint)
 - [`epaint_default_fonts 0.35.0`](https://github.com/emilk/egui/tree/main/crates/epaint_default_fonts)
@@ -7042,6 +7048,36 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+### MIT License
+
+Used by:
+- [`glutin-winit 0.5.0`](https://github.com/rust-windowing/glutin)
+
+```
+Copyright © 2022 Kirill Chibisov
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ```
 

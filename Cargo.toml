@@ -1,6 +1,6 @@
 [package]
 name = "realistic-mouse-jiggler"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.92"
 authors = ["VisorCraft LLC <packages@visorcraft.com>"]
@@ -11,7 +11,7 @@ publish = false
 [dependencies]
 anyhow = "1.0.103"
 directories = "6.0.0"
-eframe = "0.35.0"
+eframe = { version = "0.35.0", features = ["glow"] }
 enigo = { version = "0.6.1", features = ["wayland"] }
 image = { version = "0.25.10", default-features = false, features = ["png"] }
 serde = { version = "1.0.228", features = ["derive"] }

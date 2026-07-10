@@ -36,6 +36,8 @@ fn main() -> eframe::Result<()> {
 
     let native_options = eframe::NativeOptions {
         viewport,
+        #[cfg(target_os = "linux")]
+        renderer: eframe::Renderer::Glow,
         ..Default::default()
     };
 
