@@ -582,7 +582,7 @@ impl eframe::App for MouseJigglerApp {
         self.apply_theme_from_config(ctx);
 
         let viewport = ctx.input(|input| input.viewport().clone());
-        if viewport.close_requested() && !self.quit_requested {
+        if viewport.close_requested() && !self.quit_requested && !session_is_shutting_down() {
             ctx.send_viewport_cmd(ViewportCommand::CancelClose);
             self.hide_to_tray(ctx, "Hidden to tray.");
         } else if self.restoring_from_tray {
@@ -616,6 +616,29 @@ impl eframe::App for MouseJigglerApp {
                 Page::Credits => self.render_credits(ui, palette),
             });
     }
+}
+
+#[cfg(target_os = "linux")]
+fn session_is_shutting_down() -> bool {
+    is_kde_session()
+        && Command::new("qdbus6")
+            .args([
+                "org.kde.ksmserver",
+                "/KSMServer",
+                "org.kde.KSMServerInterface.isShuttingDown",
+            ])
+            .output()
+            .is_ok_and(|output| output.status.success() && qdbus_returns_true(&output.stdout))
+}
+
+#[cfg(target_os = "linux")]
+fn qdbus_returns_true(output: &[u8]) -> bool {
+    std::str::from_utf8(output).is_ok_and(|value| value.trim() == "true")
+}
+
+#[cfg(not(target_os = "linux"))]
+fn session_is_shutting_down() -> bool {
+    false
 }
 
 #[cfg(target_os = "linux")]
@@ -2031,6 +2054,13 @@ fn credit_row(ui: &mut Ui, palette: Palette, credit: &ThirdPartyCredit) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn parses_kde_shutdown_state() {
+        assert!(qdbus_returns_true(b"true\n"));
+        assert!(!qdbus_returns_true(b"false\n"));
+    }
 
     #[test]
     fn filters_license_body_by_matching_line() {
