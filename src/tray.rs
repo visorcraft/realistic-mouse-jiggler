@@ -2,7 +2,6 @@
 mod platform {
     use std::{
         path::PathBuf,
-        process,
         sync::{
             atomic::{AtomicBool, Ordering},
             mpsc::Sender,
@@ -19,6 +18,11 @@ mod platform {
     const APP_ID: &str = "com.visorcraft.realistic-mouse-jiggler";
     const APP_TITLE: &str = "Realistic Mouse Jiggler";
     const FALLBACK_ICON_NAME: &str = "preferences-desktop-mouse";
+
+    unsafe extern "C" {
+        fn _exit(status: i32) -> !;
+    }
+
     const TRAY_ICON_PNGS: [&[u8]; 6] = [
         icons::RMJ_16_PNG,
         icons::RMJ_24_PNG,
@@ -148,7 +152,8 @@ mod platform {
             label: "Quit".to_string(),
             activate: Box::new(|_tray: &mut LinuxTray| {
                 crate::app::unload_plasma_tray_watcher();
-                process::exit(0);
+                // libc exit handlers can deadlock NVIDIA EGL from this tray thread.
+                unsafe { _exit(0) }
             }),
             ..Default::default()
         }
