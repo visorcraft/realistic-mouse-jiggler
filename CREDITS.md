@@ -14,19 +14,19 @@ Repository: <https://github.com/visorcraft/realistic-mouse-jiggler>
 
 | Crate | Version | License | Project |
 | ----- | ------- | ------- | ------- |
-| anyhow | 1.0.103 | MIT OR Apache-2.0 | https://github.com/dtolnay/anyhow |
+| anyhow | 1.0.104 | MIT OR Apache-2.0 | https://github.com/dtolnay/anyhow |
 | core-foundation | 0.10.1 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
 | core-graphics | 0.25.0 | MIT OR Apache-2.0 | https://github.com/servo/core-foundation-rs |
 | directories | 6.0.0 | MIT OR Apache-2.0 | https://github.com/soc/directories-rs |
-| eframe / egui | 0.35.0 | MIT OR Apache-2.0 | https://github.com/emilk/egui |
+| eframe / egui | 0.37.0 | MIT OR Apache-2.0 | https://github.com/emilk/egui |
 | enigo | 0.6.1 | MIT | https://github.com/enigo-rs/enigo |
 | image | 0.25.10 | MIT OR Apache-2.0 | https://github.com/image-rs/image |
-| ksni | 0.3.5 | Unlicense | https://github.com/iovxw/ksni |
-| serde | 1.0.228 | MIT OR Apache-2.0 | https://github.com/serde-rs/serde |
-| toml | 1.1.2+spec-1.1.0 | MIT OR Apache-2.0 | https://github.com/toml-rs/toml |
-| tray-icon | 0.24.1 | MIT OR Apache-2.0 | https://github.com/tauri-apps/tray-icon |
+| ksni | 0.3.7 | Unlicense | https://github.com/iovxw/ksni |
+| serde | 1.0.229 | MIT OR Apache-2.0 | https://github.com/serde-rs/serde |
+| toml | 1.1.8+spec-1.1.0 | MIT OR Apache-2.0 | https://github.com/toml-rs/toml |
+| tray-icon | 0.26.1 | MIT OR Apache-2.0 | https://github.com/tauri-apps/tray-icon |
 | windows | 0.62.2 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
-| winresource | 0.1.31 | MIT | https://github.com/BenjaminRi/winresource |
+| winresource | 0.1.34 | MIT | https://github.com/BenjaminRi/winresource |
 
 ## Optional runtime integration
 

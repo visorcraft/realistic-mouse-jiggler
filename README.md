@@ -166,7 +166,7 @@ cargo test --locked
 cargo build --release --locked
 ```
 
-Rust 1.92 or newer is required.
+Rust 1.95 or newer is required.
 
 When editing `.github/workflows/release.yml`, also run:
 
