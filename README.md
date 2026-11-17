@@ -36,7 +36,7 @@ It is built around four goals:
 - **Realistic motion.** Smooth movement is available alongside a simple
   horizontal mode.
 - **Fast control.** Start or stop from the app window, system tray,
-  keyboard keys, shortcuts such as `Ctrl+Alt+F7`, or mouse buttons.
+  keyboard keys, shortcuts such as `Ctrl+Shift+F7`, or mouse buttons.
 - **Desktop-native behavior.** Closing or minimizing keeps the app
   available from the tray, and KDE/Wayland restore behavior is handled.
 - **Simple distribution.** GitHub releases include a Linux tarball,
@@ -85,8 +85,11 @@ realistic-mouse-jiggler
 ### Linux
 
 Global mouse/key binding capture reads Linux input devices directly on
-Wayland. The app needs read access to `/dev/input/event*`; a normal
+X11 and Wayland. The app needs read access to `/dev/input/event*`; a normal
 setup is to run as a user in the `input` group.
+
+`Ctrl+Alt+F1` through `Ctrl+Alt+F12` switch virtual terminals on Linux.
+Use a different chord for start/stop bindings.
 
 For cursor movement on Wayland, the app prefers `ydotool` when it is
 installed:

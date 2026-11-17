@@ -484,9 +484,11 @@ mod platform {
             66 => "F8",
             67 => "F9",
             68 => "F10",
+            70 => "Scroll Lock",
             87 => "F11",
             88 => "F12",
             97 => "Right Ctrl",
+            99 => "Print Screen",
             100 => "Right Alt",
             102 => "Home",
             103 => "Up Arrow",
@@ -498,12 +500,65 @@ mod platform {
             109 => "Page Down",
             110 => "Insert",
             111 => "Delete",
+            // KEY_PAUSE. Ctrl+Pause (Break) is this same code with Ctrl held.
+            119 => "Pause",
             125 => "Left Meta",
             126 => "Right Meta",
+            // KEY_PRINT, the consumer Print key. Print Screen is KEY_SYSRQ (99).
+            210 => "Print",
+            // KEY_BREAK. Some devices emit this instead of Ctrl+KEY_PAUSE.
+            411 => "Break",
             _ => return None,
         };
 
         Some(label.to_string())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{linux_binding, BindingKind, Modifiers};
+
+        fn assert_key(code: u16, modifiers: Modifiers, binding_code: &str, label: &str) {
+            let binding = linux_binding(code, modifiers)
+                .unwrap_or_else(|| panic!("evdev code {code} was dropped"));
+            assert_eq!(binding.kind, BindingKind::Key);
+            assert_eq!(binding.code, binding_code);
+            assert_eq!(binding.label, label);
+        }
+
+        #[test]
+        fn pause_break_scroll_lock_and_print_screen_record_with_modifiers() {
+            let none = Modifiers::default();
+            let alt = Modifiers {
+                alt: true,
+                ..Modifiers::default()
+            };
+            let alt_shift = Modifiers {
+                alt: true,
+                shift: true,
+                ..Modifiers::default()
+            };
+            let ctrl = Modifiers {
+                ctrl: true,
+                ..Modifiers::default()
+            };
+
+            assert_key(119, alt, "linux-key:alt+119", "Alt+Pause");
+            assert_key(119, alt_shift, "linux-key:alt+shift+119", "Alt+Shift+Pause");
+            // Evdev keeps Ctrl+Pause on KEY_PAUSE. It does not swap in another code.
+            assert_key(119, ctrl, "linux-key:ctrl+119", "Ctrl+Pause");
+            assert_key(411, none, "linux-key:411", "Break");
+            assert_key(411, ctrl, "linux-key:ctrl+411", "Ctrl+Break");
+            assert_key(70, alt, "linux-key:alt+70", "Alt+Scroll Lock");
+            assert_key(99, none, "linux-key:99", "Print Screen");
+            assert_key(99, alt, "linux-key:alt+99", "Alt+Print Screen");
+            assert_key(210, none, "linux-key:210", "Print");
+        }
+
+        #[test]
+        fn unmapped_evdev_keys_stay_ignored() {
+            assert!(linux_binding(69, Modifiers::default()).is_none());
+        }
     }
 }
 
